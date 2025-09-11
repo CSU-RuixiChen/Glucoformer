@@ -1,0 +1,80 @@
+absl-py==2.3.1
+alembic==1.16.4
+asttokens @ file:///croot/asttokens_1743630435401/work
+colorlog==6.9.0
+comm @ file:///work/perseverance-python-buildout/croot/comm_1728387093347/work
+contourpy==1.3.2
+cycler==0.12.1
+debugpy @ file:///croot/debugpy_1736267418885/work
+decorator @ file:///opt/conda/conda-bld/decorator_1643638310831/work
+einops==0.8.1
+executing @ file:///opt/conda/conda-bld/executing_1646925071911/work
+filelock==3.13.1
+fonttools==4.58.5
+fsspec==2024.6.1
+greenlet==3.2.3
+grpcio==1.73.1
+joblib==1.5.1
+jupyter_client @ file:///io/buildout/croot/jupyter_client_1739558249609/work
+jupyter_core @ file:///croot/jupyter_core_1751991368470/work
+kiwisolver==1.4.8
+Mako==1.3.10
+Markdown==3.8.2
+MarkupSafe==3.0.2
+matplotlib==3.10.3
+matplotlib-inline @ file:///io/buildout/croot/matplotlib-inline_1732912690718/work
+mpmath==1.3.0
+nest_asyncio @ file:///work/perseverance-python-buildout/croot/nest-asyncio_1728387361665/work
+networkx==3.3
+numpy==2.1.2
+nvidia-cublas-cu11==11.11.3.6
+nvidia-cuda-cupti-cu11==11.8.87
+nvidia-cuda-nvrtc-cu11==11.8.89
+nvidia-cuda-runtime-cu11==11.8.89
+nvidia-cudnn-cu11==9.1.0.70
+nvidia-cufft-cu11==10.9.0.58
+nvidia-curand-cu11==10.3.0.86
+nvidia-cusolver-cu11==11.4.1.48
+nvidia-cusparse-cu11==11.7.5.86
+nvidia-nccl-cu11==2.21.5
+nvidia-nvtx-cu11==11.8.86
+optuna==4.4.0
+
+pandas==2.3.1
+parso @ file:///croot/parso_1733963305961/work
+pexpect @ file:///croot/pexpect_1750072593878/work
+pillow==11.0.0
+platformdirs @ file:///croot/platformdirs_1744273042065/work
+prompt_toolkit @ file:///work/perseverance-python-buildout/croot/prompt-toolkit_1728511366266/work
+protobuf==6.31.1
+psutil @ file:///croot/psutil_1736367091698/work
+ptyprocess @ file:///tmp/build/80754af9/ptyprocess_1609355006118/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl
+pure-eval @ file:///opt/conda/conda-bld/pure_eval_1646925070566/work
+Pygments @ file:///croot/pygments_1744664109463/work
+pyparsing==3.2.3
+python-dateutil @ file:///work/perseverance-python-buildout/croot/python-dateutil_1728385355105/work
+pytz==2025.2
+PyYAML==6.0.2
+pyzmq @ file:///croot/pyzmq_1734687138743/work
+scikit-learn==1.7.0
+scipy==1.16.0
+setuptools==78.1.1
+six @ file:///croot/six_1744271502820/work
+SQLAlchemy==2.0.41
+stack-data @ file:///opt/conda/conda-bld/stack_data_1646927590127/work
+sympy==1.13.3
+tensorboard==2.19.0
+tensorboard-data-server==0.7.2
+threadpoolctl==3.6.0
+torch==2.7.1+cu118
+torchaudio==2.7.1+cu118
+torchvision==0.22.1+cu118
+tornado @ file:///croot/tornado_1748956929273/work
+tqdm==4.67.1
+traitlets @ file:///work/perseverance-python-buildout/croot/traitlets_1728385099292/work
+triton==3.3.1
+typing_extensions==4.12.2
+tzdata==2025.2
+wcwidth @ file:///croot/wcwidth_1750352883074/work
+Werkzeug==3.1.3
+wheel==0.45.1
