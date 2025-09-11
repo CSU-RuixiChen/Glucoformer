@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyc
+results/
+experiments/nci/help.txt
+
+
+Glucoformer1/
+Glucose_Data/
+save_*/
+Experiments/Cross-subject_Generalization
+Experiments/feature_fusion_Glucoformer_results
+Experiments/optuna_results_20250801_115557
+All_models_run.py
+
+
