@@ -29,7 +29,7 @@ Table of Contents:
 - **Transfer Learning Pipeline:** Unlike baselines trained solely on the OhioT1DM Dataset, Glucoformer leverages pre-training on the T1DMS Dataset to capture general glucose dynamics, followed by fine-tuning on the OhioT1DM Dataset for subject-specific adaptation.
 - **Thorough Analysis:** Our experiments include personalized (within-subject) vs. cross-subject generalization under subject-wise partitioning, feature-fusion strategy analysis, long-horizon forecasting, and computational complexity profiling.
 
-## 2. The overview of repository
+## 2. The Overview Of Repository
 
 ### 2.1 Project Folder Structure
 
@@ -78,7 +78,7 @@ BGPrediction
 
 ### 2.2 Key Components Summary
 
-#### Brief introduction of the files: 
+#### Brief Introduction Of the Files: 
 - **Crossformer/Crossformer_main.py**: Main script to run the Crossformer model for blood glucose prediction.
 - **Crossformer/cross_models/**: Contains the model architecture and related modules for Crossformer.
 - **Crossformer/save_Crossformer_model_*** and **save_Crossformer_prediction_***: Directories for saving trained model checkpoints and prediction results, respectively.
@@ -110,7 +110,7 @@ BGPrediction
 
 #### Visualization:
   Jupyter notebooks in the `Experiments/` folder provide comprehensive tools for visualizing and analyzing model performance. 
-  - **Examples**:
+  **Examples**:
   <div align="center">
     <img src="figures/Blood Glucose Prediction Comparison Curve.png" alt="Blood Glucose Prediction Comparison" width="80%"><br>
   </div>
