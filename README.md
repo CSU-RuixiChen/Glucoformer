@@ -203,7 +203,7 @@ After obtaining the data, please place it in a new subfolder following the direc
   ├── sim_data_train_dataset.mat
   ├── sim_data_validate_dataset.mat
   ├── sim_results_train_dataset.mat
-  ├── sim_results_validate_dataset.mat
+  └── sim_results_validate_dataset.mat
   </pre>
 
 ### 3.3 Experiment Running
