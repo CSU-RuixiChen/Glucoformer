@@ -78,37 +78,37 @@ BGPrediction
 ### 2.2 Key Components Summary
 
 #### （1）File Overview: 
-  - **Crossformer/Crossformer_main.py**: Main script to run the Crossformer model for blood glucose prediction.
-  - **Crossformer/cross_models/**: Contains the model architecture and related modules for Crossformer.
-  - **Crossformer/save_Crossformer_model_*** and **save_Crossformer_prediction_***: Directories for saving trained model checkpoints and prediction results, respectively.
-  - **Crossformer/save_scaler/**: Stores data normalization scalers used during training and inference.
-  - The folder structure and file usage for other baseline models (such as **DLinear**, **GRU**, **LSTM**, **Informer**, **PatchTST**, **TimeXer**, and **Transformer**) are similar to the above. Each contains a main script for running the model, a subfolder for model definitions, directories for saving model checkpoints and predictions, and a scaler directory for normalization.
+- **Crossformer/Crossformer_main.py**: Main script to run the Crossformer model for blood glucose prediction.
+- **Crossformer/cross_models/**: Contains the model architecture and related modules for Crossformer.
+- **Crossformer/save_Crossformer_model_*** and **save_Crossformer_prediction_***: Directories for saving trained model checkpoints and prediction results, respectively.
+- **Crossformer/save_scaler/**: Stores data normalization scalers used during training and inference.
+- The folder structure and file usage for other baseline models (such as **DLinear**, **GRU**, **LSTM**, **Informer**, **PatchTST**, **TimeXer**, and **Transformer**) are similar to the above. Each contains a main script for running the model, a subfolder for model definitions, directories for saving model checkpoints and predictions, and a scaler directory for normalization.
 
-  - **Glucoformer/utils/Glucoformer_options.py**: Handles configuration and hyperparameter options for experiments.
-  - **Glucoformer/utils/train_eval.py**: Contains training and evaluation routines, including model training loops and validation.
-  - **Glucoformer/utils/tools.py**: Utility functions for logging loss, early stopping, and directory management.
-  - **Glucoformer/save_Glucoformer_model_*** and **save_Glucoformer_prediction_***: Folders for saving Glucoformer model weights and prediction outputs.
-  - **Glucoformer/save_scaler/**: Stores normalization scalers for Glucoformer.
-  - **Experiments/Core.py**: Main experimental pipeline for running personalized and cross-subject prediction experiments with Glucoformer, including model training and evaluation.
-  - **Experiments/Feature_Fusion_Experiment.py**: Script for running feature fusion experiments and saving results (including RMSE/MAE) to CSV files.
-  - **Experiments/Glucoformer_optuna.py**: Hyperparameter optimization using Optuna for Glucoformer.
-  - **Experiments/Visualiser.ipynb**: Jupyter notebook for visualizing and analyzing model predictions and training curves.
-  - **Experiments/Cross-subject_Generalization/**: Directory for cross-subject generalization experiment scripts and results.
-  - **Experiments/feature_fusion_Glucoformer_results/**: Stores results from feature fusion experiments.
-  - **Experiments/optuna_results_20250801_115557/**: Stores results from Optuna hyperparameter optimization.
-  - **All_models_run.sh**: Shell script to run all models or batch experiments.
-  - **requirements.txt**: Lists all Python dependencies required to run the project.
-  - **Glucose_Data/**: Contains raw and processed blood glucose datasets.
-  - **save_loss/**: Directories for saving training and validation loss logs.
+- **Glucoformer/utils/Glucoformer_options.py**: Handles configuration and hyperparameter options for experiments.
+- **Glucoformer/utils/train_eval.py**: Contains training and evaluation routines, including model training loops and validation.
+- **Glucoformer/utils/tools.py**: Utility functions for logging loss, early stopping, and directory management.
+- **Glucoformer/save_Glucoformer_model_*** and **save_Glucoformer_prediction_***: Folders for saving Glucoformer model weights and prediction outputs.
+- **Glucoformer/save_scaler/**: Stores normalization scalers for Glucoformer.
+- **Experiments/Core.py**: Main experimental pipeline for running personalized and cross-subject prediction experiments with Glucoformer, including model training and evaluation.
+- **Experiments/Feature_Fusion_Experiment.py**: Script for running feature fusion experiments and saving results (including RMSE/MAE) to CSV files.
+- **Experiments/Glucoformer_optuna.py**: Hyperparameter optimization using Optuna for Glucoformer.
+- **Experiments/Visualiser.ipynb**: Jupyter notebook for visualizing and analyzing model predictions and training curves.
+- **Experiments/Cross-subject_Generalization/**: Directory for cross-subject generalization experiment scripts and results.
+- **Experiments/feature_fusion_Glucoformer_results/**: Stores results from feature fusion experiments.
+- **Experiments/optuna_results_20250801_115557/**: Stores results from Optuna hyperparameter optimization.
+- **All_models_run.sh**: Shell script to run all models or batch experiments.
+- **requirements.txt**: Lists all Python dependencies required to run the project.
+- **Glucose_Data/**: Contains raw and processed blood glucose datasets.
+- **save_loss/**: Directories for saving training and validation loss logs.
 
 #### （2）Model Running:  
-    Main scripts such as `Glucoformer_main.py` and `Crossformer_main.py` are used to train and test models.  
+  Main scripts such as `Glucoformer_main.py` and `Crossformer_main.py` are used to train and test models.  
 
 #### （3）Result Saving:  
-    Model weights and predictions are saved in the corresponding `save_*` directories.  
+  Model weights and predictions are saved in the corresponding `save_*` directories.  
 
 #### （4）Visualization:
-    Jupyter notebooks in the `Experiments/` folder provide comprehensive tools for visualizing and analyzing model performance. 
+  Jupyter notebooks in the `Experiments/` folder provide comprehensive tools for visualizing and analyzing model performance. 
   **Examples**:
   <div align="center">
     <img src="figures/Blood Glucose Prediction Comparison Curve.png" alt="Blood Glucose Prediction Comparison" width="80%"><br>
