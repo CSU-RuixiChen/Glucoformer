@@ -77,7 +77,7 @@ BGPrediction
 
 ### 2.2 Key Components Summary
 
-#### File Overview: 
+#### （1）File Overview: 
 - **Crossformer/Crossformer_main.py**: Main script to run the Crossformer model for blood glucose prediction.
 - **Crossformer/cross_models/**: Contains the model architecture and related modules for Crossformer.
 - **Crossformer/save_Crossformer_model_*** and **save_Crossformer_prediction_***: Directories for saving trained model checkpoints and prediction results, respectively.
@@ -101,13 +101,13 @@ BGPrediction
 - **Glucose_Data/**: Contains raw and processed blood glucose datasets.
 - **save_loss/**: Directories for saving training and validation loss logs.
 
-#### Model Running:  
+#### （2）Model Running:  
   Main scripts such as `Glucoformer_main.py` and `Crossformer_main.py` are used to train and test models.  
 
 #### Result Saving:  
   Model weights and predictions are saved in the corresponding `save_*` directories.  
 
-#### Visualization:
+#### （3）Visualization:
   Jupyter notebooks in the `Experiments/` folder provide comprehensive tools for visualizing and analyzing model performance. 
   **Examples**:
   <div align="center">
@@ -208,7 +208,7 @@ After obtaining the data, please place it in a new subfolder following the direc
 
 ### 3.3 Experiment Running
 
-#### (1) Train and Test a Single Model
+#### (1)Train and Test a Single Model
 
 - To train and test an individual model (e.g., Glucoformer or Crossformer), run the corresponding main script:
   - Glucoformer:
@@ -221,7 +221,7 @@ After obtaining the data, please place it in a new subfolder following the direc
     ```
 - You can customize model parameters and data paths within the main scripts for personalized experiments.
 
-#### (2) Batch Training of All Models
+#### (2)Batch Training of All Models
 
 - To train and test all models in batch, simply run the shell script:
   ```bash
@@ -229,7 +229,7 @@ After obtaining the data, please place it in a new subfolder following the direc
   ```
 - This script will automatically execute each model's main program for comprehensive benchmarking.
 
-#### (3) Feature Fusion and Validation Experiments
+#### (3)Feature Fusion and Validation Experiments
 
 - For feature fusion experiments, use:
   ```bash
@@ -237,7 +237,7 @@ After obtaining the data, please place it in a new subfolder following the direc
   ```
 - This script fuses multiple features, trains models, and saves results (e.g., RMSE/MAE) to CSV files for further analysis.
 
-#### (4) Hyperparameter Optimization
+#### (4)Hyperparameter Optimization
 
 - To optimize Glucoformer hyperparameters, run the Optuna script:
   ```bash
@@ -245,7 +245,7 @@ After obtaining the data, please place it in a new subfolder following the direc
   ```
 - This script automatically searches for the best parameter combinations and saves optimization results.
 
-#### (5) Results Visualization and Analysis
+#### (5)Results Visualization and Analysis
 
 - After training, use the Jupyter notebook for visualization and analysis:
   - Open and run:
