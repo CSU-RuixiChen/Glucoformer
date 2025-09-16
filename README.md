@@ -126,14 +126,14 @@ Figure 2. Clarke Error Grid Analysis for Multiple Models: Clarke Error Grid Anal
 
 To set up the environment for this project, please follow these steps:
 
-**1. Clone the repository**
+#### (1)Clone the repository
 
 ```bash
 git clone https://github.com/CSU-RuixiChen/BGPrediction.git
 cd BGPrediction
 ```
 
-**2. Create and activate a Python virtual environment**
+#### (2)Create and activate a Python virtual environment
 
 ```bash
 # Using venv
@@ -145,7 +145,7 @@ conda create -n ENVIRONMENT_NAME python=3.13.5
 conda activate ENVIRONMENT_NAME
 ```
 
-**3. Install required packages**
+#### (3)Install required packages
 
 ```bash
 pip install -r requirements.txt
