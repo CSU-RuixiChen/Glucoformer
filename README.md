@@ -1,6 +1,6 @@
 # Glucoformer: Multimodal Cross-subject Glucose Forecasting with Long-term Prediction Capability
 
-<img width="2329" height="1772" alt="image" src="https://github.com/user-attachments/assets/ad80211f-1271-45ff-a250-6a4044bb873c" />
+<img src="figures/Overview of Glucoformer.png" alt="Overview of Glucoformer" />
 
 > Paper: 
 >
@@ -158,7 +158,8 @@ After these steps, your environment will be ready to run the code and experiment
 
 The T1DMS virtual dataset and the OhioT1DM real-world dataset were utilized in this project. The T1DMS virtual dataset was employed for pre-training and development of the population-level Glucoformer model, enabling the model to learn general blood glucose dynamics across diverse virtual subjects. The OhioT1DM real-world dataset was used for fine-tuning and evaluation of the Glucoformer model, as well as for training and evaluation of other baseline models. It also served as the benchmark for assessing final model performance on real patient data. Due to file size and data sharing restrictions, the original datasets are not included in this repository. However, the complete datasets can be obtained from the following official sources:
 
-- **T1DMS Virtual Dataset**: 
+- **T1DMS Virtual Dataset**: The T1DMS dataset was generated using the UVa/Padova simulator (available at [https://tegvirginia.com/t1dms/
+]), and we provide the scenario files for scenarios 1–60 to facilitate replication.
 - **OhioT1DM Real Dataset**: https://webpages.charlotte.edu/rbunescu/ohiot1dm.html
 
 After obtaining the data, please place it in a new subfolder following the directory structure below. This will ensure compatibility with the data processing scripts, allowing you to generate the processed data files required for model development and replication.

@@ -23,7 +23,7 @@ def get_PatchTST_parser():
 
     # forecasting task
     parser.add_argument('--seed', type=int, default=2024, help='random seed')
-    parser.add_argument('--model_name', type=str, default='PatchTST1', help='model name')
+    parser.add_argument('--model_name', type=str, default='PatchTST', help='model name')
     parser.add_argument('--path_to_save_scaler', type=str, default="save_scaler/", help='device ids of multile gpus')
     parser.add_argument('--path_to_save_loss', type=str, default="../save_loss/", help='path to save loss')
 

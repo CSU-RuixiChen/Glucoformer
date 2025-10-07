@@ -619,7 +619,103 @@ def run(config, model, Tranning_mode="normal_train", Experiment_mode=None):
     return RMSE, MAE
 
 
+def inference_and_save_attention(config, model, test_dataloader, path_to_save_model, best_model, device, patient):
+    """
+    一个专门用于推理并保存注意力分数的核心函数。
+    """
+    # 加载最佳模型权重
+    model.load_state_dict(torch.load(path_to_save_model + best_model))
+    
+    # 将模型设置为评估模式
+    model.eval()
+    
+    with torch.no_grad():
+        pbar = tqdm(test_dataloader)
+        pbar.set_description(f"Saving Attention for Patient {patient}")
+        
+        all_attn_weights = []
 
+        for step, (encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt, _) in enumerate(pbar):
+            # 将数据移到设备上
+            encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
+            
+            # 前向传播，并获取注意力权重
+            # 假设模型支持 return_attention=True 参数
+            _, attn_weights = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
+            
+            # 收集注意力权重
+            all_attn_weights.append(attn_weights.detach().cpu().numpy())
+
+    # 创建保存目录
+    path_to_save_attention = f"save_{config.model_name}_attention_{config.seed}seed_{config.pred_len}min_{patient}patient/"
+    if os.path.exists(path_to_save_attention):
+        shutil.rmtree(path_to_save_attention)
+    os.makedirs(path_to_save_attention)
+
+    # 拼接并保存
+    all_attn_weights_np = np.concatenate(all_attn_weights, axis=0)
+    np.save(os.path.join(path_to_save_attention, "attention_weights.npy"), all_attn_weights_np)
+    
+    print(f"Attention maps saved to {path_to_save_attention}")
+    print(f"Saved attention shape: {all_attn_weights_np.shape}")
+
+
+def run_attention_saving_experiment(config, path_to_save_model, best_model, model=None):
+
+    # 计算时间步相关参数
+    time_step = config.time_step
+    seq_len = int(config.seq_len / time_step)
+    label_len = int(config.label_len / time_step)
+    pred_len = int(config.pred_len / time_step)
+
+    # 定义设备
+    device = torch.device(config.device)
+
+    # 准备数据
+    data_dir="../Glucose_Data/OhioT1DM_processed_dataset"
+    # 只需要 scalar 来构建数据集，所以其他返回可以用 _ 忽略
+    _, _, _, scalar = prepare_Ohio_data(
+        data_dir=data_dir,
+        seq_length=seq_len, label_length=label_len, pred_length=pred_len)
+    
+    # 您可以指定为哪些患者保存注意力图
+    patients_to_analyze = ["563", "596"]
+    
+    for p in patients_to_analyze:
+        # 为单个患者创建数据集和数据加载器
+        test_dataset = torch.utils.data.ConcatDataset([
+            OhioDataset(
+                raw_df=pd.read_csv(os.path.join(data_dir, f"{p}_train.csv")), 
+                seq_length=seq_len, label_length=label_len, pred_length=pred_len, 
+                external_mean=scalar.mean,
+                external_std=scalar.std,    
+            ),
+            OhioDataset(
+                raw_df=pd.read_csv(os.path.join(data_dir, f"{p}_test.csv")), 
+                seq_length=seq_len, label_length=label_len, pred_length=pred_len, 
+                external_mean=scalar.mean,
+                external_std=scalar.std,
+            )
+        ])
+
+        test_dataloader = DataLoader(test_dataset, config.batch_size, shuffle=False)
+
+        model = model.to(device)
+        
+        print(f"----------------[Attention] Starting to save attention maps for subject {p}----------------")
+        
+        # 调用核心函数来执行推理和保存
+        inference_and_save_attention(
+            config, 
+            model, 
+            test_dataloader, 
+            path_to_save_model, 
+            best_model, 
+            device, 
+            patient=p
+        )
+        
+        print(f"----------------[Attention] Finished saving attention maps for subject {p}----------------")
 
 
 

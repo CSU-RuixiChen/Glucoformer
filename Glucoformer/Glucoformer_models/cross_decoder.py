@@ -21,6 +21,7 @@ class DecoderLayer(nn.Module):
                                 nn.Linear(d_model, d_model))
         self.linear_pred = nn.Linear(d_model, seg_len)
 
+
     def forward(self, x, cross):
         '''
         x: the output of last decoder layer
@@ -32,9 +33,10 @@ class DecoderLayer(nn.Module):
         x = rearrange(x, 'b ts_d out_seg_num d_model -> (b ts_d) out_seg_num d_model')
         
         cross = rearrange(cross, 'b ts_d in_seg_num d_model -> (b ts_d) in_seg_num d_model')
-        tmp = self.cross_attention(
+        tmp, attn = self.cross_attention(
             x, cross, cross,
         )
+        # print("Attention weights shape:", attn.shape)  # Debugging line to check attention weights shape
         x = x + self.dropout(tmp)
         y = x = self.norm1(x)
         y = self.MLP1(y)
@@ -44,17 +46,17 @@ class DecoderLayer(nn.Module):
         layer_predict = self.linear_pred(dec_output)
         layer_predict = rearrange(layer_predict, 'b out_d seg_num seg_len -> b (out_d seg_num) seg_len')
 
-        return dec_output, layer_predict
+        return dec_output, layer_predict, attn
 
 class Decoder(nn.Module):
     '''
     The decoder of Crossformer, making the final prediction by adding up predictions at each scale
     '''
     def __init__(self, attn1, attn2, attn3, seg_len, d_layers, d_model, n_heads, d_ff, dropout,\
-                router=False, out_seg_num = 10, factor=10):
+                output_attention=False, out_seg_num = 10, factor=10):
         super(Decoder, self).__init__()
 
-        self.router = router
+        self.output_attention = output_attention
         self.decode_layers = nn.ModuleList()
         for i in range(d_layers):
             self.decode_layers.append(DecoderLayer(attn1, attn2, attn3, seg_len, d_model, n_heads, d_ff, dropout, \
@@ -63,18 +65,18 @@ class Decoder(nn.Module):
     def forward(self, x, cross):
         final_predict = None
         i = 0
-
+        attn_list = []
         ts_d = x.shape[1]
         for layer in self.decode_layers:
             cross_enc = cross[i]
-            x, layer_predict = layer(x,  cross_enc)
+            x, layer_predict, attn = layer(x,  cross_enc)
             if final_predict is None:
                 final_predict = layer_predict
             else:
                 final_predict = final_predict + layer_predict
             i += 1
-        
+            attn_list.append(attn)
         final_predict = rearrange(final_predict, 'b (out_d seg_num) seg_len -> b (seg_num seg_len) out_d', out_d = ts_d)
 
-        return final_predict
+        return final_predict, attn_list[-1]
 

@@ -24,7 +24,7 @@ class FullAttention(nn.Module):
         A = self.dropout(torch.softmax(scale * scores, dim=-1))
         V = torch.einsum("bhls,bshd->blhd", A, values)
         
-        return V.contiguous()
+        return V.contiguous(), A
 
 class DepthwiseSeparableConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, bias=True):
@@ -69,7 +69,7 @@ class MSPatchLinearAttention(nn.Module):
         v_ = self.dwconv(values.permute(0, 2, 1, 3))
         qkv = qkv + v_
 
-        return qkv.contiguous()
+        return qkv.contiguous(), None
 
 
 class AttentionLayer(nn.Module):
@@ -98,7 +98,7 @@ class AttentionLayer(nn.Module):
         keys = self.key_projection(keys).view(B, S, H, -1)
         values = self.value_projection(values).view(B, S, H, -1)
 
-        out = self.inner_attention(
+        out, attn  = self.inner_attention(
             queries,
             keys,
             values,
@@ -106,7 +106,7 @@ class AttentionLayer(nn.Module):
 
         out = out.view(B, L, -1)
 
-        return self.out_projection(out)
+        return self.out_projection(out), attn
 
 class TwoStageAttentionLayer(nn.Module):
     '''
@@ -140,7 +140,7 @@ class TwoStageAttentionLayer(nn.Module):
         #Cross Time Stage: Directly apply MSA to each dimension
         batch = x.shape[0]
         time_in = rearrange(x, 'b ts_d seg_num d_model -> (b ts_d) seg_num d_model')
-        time_enc = self.time_attention(
+        time_enc, _ = self.time_attention(
             time_in, time_in, time_in
         )
         dim_in = time_in + self.dropout(time_enc)
@@ -151,8 +151,8 @@ class TwoStageAttentionLayer(nn.Module):
         #Cross Dimension Stage: use a small set of learnable vectors to aggregate and distribute messages to build the D-to-D connection
         dim_send = rearrange(dim_in, '(b ts_d) seg_num d_model -> (b seg_num) ts_d d_model', b = batch)
         batch_router = repeat(self.router, 'seg_num factor d_model -> (repeat seg_num) factor d_model', repeat = batch)
-        dim_buffer = self.dim_sender(batch_router, dim_send, dim_send)
-        dim_receive = self.dim_receiver(dim_send, dim_buffer, dim_buffer)
+        dim_buffer, _ = self.dim_sender(batch_router, dim_send, dim_send)
+        dim_receive, _ = self.dim_receiver(dim_send, dim_buffer, dim_buffer)
         dim_enc = dim_send + self.dropout(dim_receive)
         dim_enc = self.norm3(dim_enc)
         dim_enc = dim_enc + self.dropout(self.MLP2(dim_enc))

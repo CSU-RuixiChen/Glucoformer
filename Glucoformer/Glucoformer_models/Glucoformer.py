@@ -13,16 +13,15 @@ from math import ceil
 class Glucoformer(nn.Module):
     def __init__(self, data_dim, in_len, out_len, seg_len, output_size, win_size = 2,
                 factor=4, d_model=512, d_ff = 1024, n_heads=8, e_layers=3, 
-                dropout=0.0, baseline = False, device=torch.device('cuda:0')):
+                dropout=0.0, output_attention=False, baseline = False, device=torch.device('cuda:0')):
         super(Glucoformer, self).__init__()
         self.data_dim = data_dim
         self.in_len = in_len
         self.out_len = out_len
         self.seg_len = seg_len
         self.merge_win = win_size
-
+        self.output_attention = output_attention
         self.baseline = baseline
-
         self.device = device
 
         # The padding operation to handle invisible sgemnet length
@@ -50,16 +49,20 @@ class Glucoformer(nn.Module):
         
     def forward(self, x_seq, encoder_input_mark, decoder_input ,decoder_input_mark):
         batch_size = x_seq.shape[0]
+
         if (self.in_len_add != 0):
             x_seq = torch.cat((x_seq[:, :1, :].expand(-1, self.in_len_add, -1), x_seq), dim = 1)
         x_seq = self.enc_value_embedding(x_seq, None)
-        x_seq += self.enc_pos_embedding
+        x_seq = x_seq + self.enc_pos_embedding
         x_seq = self.pre_norm(x_seq)
         
         enc_out = self.encoder(x_seq)
 
         dec_in = repeat(self.dec_pos_embedding, 'b ts_d l d -> (repeat b) ts_d l d', repeat = batch_size)
-        predict_y = self.decoder(dec_in, enc_out)
+        predict_y, attn_weights = self.decoder(dec_in, enc_out)
         predict_y = self.linear_pred(predict_y)
 
-        return predict_y[:, :self.out_len, :]
+        if self.output_attention:
+            return predict_y[:, :self.out_len, :], attn_weights
+        else:
+            return predict_y[:, :self.out_len, :]

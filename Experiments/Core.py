@@ -141,7 +141,6 @@ def Prediction_Visualiser(PH, seed=2024, days=3, start_time=0):
 
 def plot_multi_figure(PH, seed=2024, patient=563, days=3, start_time=0):
     Duration = int(288 * days)
-    patients = ["563", "596"]
     model_names = [
         "GRU",
         "LSTM", 
@@ -190,7 +189,7 @@ def plot_multi_figure(PH, seed=2024, patient=563, days=3, start_time=0):
         "GRU":           "#72777b",  
     }
 
-    plt.figure(figsize=(10, 3.5))
+    fig, ax = plt.subplots(figsize=(10, 3.5))
 
     # 真实值
     y_path = f'../Glucoformer/save_Glucoformer_prediction_{seed}seed_{PH}min_{patient}patient/true_values.npy'
@@ -226,6 +225,101 @@ def plot_multi_figure(PH, seed=2024, patient=563, days=3, start_time=0):
     plt.tight_layout()
     plt.show()
 
+
+def generate_main_and_zoom_plots(PH, seed, patient, days, start_time, zoom_regions, base_zoom_height=5):
+    import matplotlib.patches as patches
+    """
+    Generates a main prediction plot with zoom indicators, and then creates separate plots for each zoom region.
+
+    Args:
+        PH (int): Prediction horizon in minutes.
+        seed (int): Random seed for the experiment.
+        patient (int or str): Patient identifier.
+        days (float): Duration of the plot in days.
+        start_time (int): Starting index for the data slice.
+        zoom_regions (list): A list of dictionaries, each defining a zoom region with 'x_range' and 'y_range'.
+        base_zoom_height (float): The base height in inches for the separate zoom plots.
+    """
+    # --- Step 1: Generate the main plot ---
+    Duration = int(288 * days)
+    model_names = ["Transformer", "PatchTST", "Crossformer", "Glucoformer"]
+    model_colors = {
+        "Glucoformer":   "#E41A1C",  # Red
+        "Crossformer":   "#377EB8",  # Blue
+        "PatchTST":      "#228B22",  # Forest Green
+        "Transformer":   "#F781BF",  # Pink
+    }
+
+    fig, ax = plt.subplots(figsize=(10, 3.25))
+
+    # Plot ground truth
+    y_path = f'../Glucoformer/save_Glucoformer_prediction_{seed}seed_{PH}min_{patient}patient/true_values.npy'
+    y = np.load(y_path)[start_time:Duration+start_time, -1, 0]
+    ax.plot(y, label='Actual', color='k', linewidth=1.8)
+    
+    # Plot model predictions
+    for model_name in model_names:
+        yp_path = f'../{model_name}/save_{model_name}_prediction_{seed}seed_{PH}min_{patient}patient/predicted_values.npy'
+        if os.path.exists(yp_path):
+            yp = np.load(yp_path)[start_time:Duration+start_time, -1, 0]
+            linestyle = '-' if model_name == "Glucoformer" else '--'
+            linewidth = 1.2 if model_name == "Glucoformer" else 1.0
+            ax.plot(yp, label=model_name, linestyle=linestyle, linewidth=linewidth, color=model_colors.get(model_name, "gray"))
+
+    # Style the main plot
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Blood Glucose (mg/dL)')
+    ax.set_title(f'Prediction Comparison (PH={PH}min, Patient {patient})')
+    ax.legend(loc='best', ncol=5, fontsize=9)
+    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.15)
+
+    # --- Step 2: Draw indicator boxes on the main plot ---
+    for region in zoom_regions:
+        rect = patches.Rectangle(
+            (region['x_range'][0], region['y_range'][0]),
+            width=region['x_range'][1] - region['x_range'][0],
+            height=region['y_range'][1] - region['y_range'][0],
+            linewidth=1.2, edgecolor='black', facecolor='none', alpha=0.8
+        )
+        ax.add_patch(rect)
+    
+    print("Main plot with indicator boxes has been generated.")
+    plt.show()
+
+    # --- Step 3: Generate and show a separate plot for each zoom region ---
+    print("\nGenerating individual plots for each zoom region...")
+    for region in zoom_regions:
+        x_range, y_range = region['x_range'], region['y_range']
+        
+        # Calculate aspect ratio
+        data_width = x_range[1] - x_range[0]
+        data_height = y_range[1] - y_range[0]
+        fig_width = base_zoom_height * (data_width / data_height) if data_height > 0 else base_zoom_height
+
+        # Create new figure for the zoom plot
+        fig_zoom, ax_zoom = plt.subplots(figsize=(fig_width, base_zoom_height))
+
+        # Re-plot all lines
+        for line in ax.get_lines():
+            ax_zoom.plot(line.get_xdata(), line.get_ydata(),
+                         color=line.get_color(),
+                         linestyle=line.get_linestyle(),
+                         linewidth=line.get_linewidth() * 1.5)
+
+        # Set limits and style the zoom plot
+        ax_zoom.set_xlim(x_range)
+        ax_zoom.set_ylim(y_range)
+        ax_zoom.grid(True, linestyle='--', alpha=0.7)
+        ax_zoom.set_title("")
+        ax_zoom.set_xlabel("")
+        ax_zoom.set_ylabel("")
+        if ax_zoom.get_legend() is not None:
+            ax_zoom.get_legend().remove()
+
+        plt.tight_layout()
+        plt.show()
+        
 
 def clarke(y, yp, model_name, PH, patient, print_figure=False):
     """
@@ -584,3 +678,65 @@ def clarke_zone_stats(PH, seeds=[2023, 2024, 2025], patients=["563", "596"], mod
             })
     df = pd.DataFrame(results)
     return df
+
+
+def plot_attention_heatmap(attention_path, patient, sample_idx, head_idx, dec_seg_idx, feature_names=None):
+    import seaborn as sns
+    import matplotlib.font_manager as fm
+    """
+    Load, reshape, and visualize a specific attention heatmap.
+
+    Args:
+        config (Namespace): Configuration object with model and path info.
+        patient (str or int): Patient ID for file path.
+        sample_idx (int): Sample index (from the batch) to visualize.
+        head_idx (int): Attention head index to visualize.
+        dec_seg_idx (int): Decoder segment index to visualize.
+        feature_names (list, optional): Names for y-axis labels. Defaults to ['CHO', 'Insulin', 'BG'].
+    """
+    if feature_names is None:
+        feature_names = ['CHO', 'Insulin', 'BG']
+    num_features = len(feature_names)
+
+    # 1. Load attention data
+
+    if not os.path.exists(attention_path):
+        print(f"Error: Attention file not found at {attention_path}")
+        return
+
+    attn_weights = np.load(attention_path)
+
+    # 2. Reshape dimensions
+    # Original: (samples, n_heads, dec_seg_num, enc_seg_num)
+    # Target: (batch, n_heads, features, dec_seg_num, enc_seg_num)
+    try:
+        batch_size = attn_weights.shape[0] // num_features
+        reshaped_attn = attn_weights.reshape(batch_size, num_features, *attn_weights.shape[1:])
+        reshaped_attn = reshaped_attn.transpose(0, 2, 1, 3, 4)
+    except ValueError as e:
+        print(f"Error reshaping array: {e}. Total samples might not be divisible by num_features.")
+        return
+
+    # 3. Select the specific 2D map for plotting
+    try:
+        attn_map_2d = reshaped_attn[sample_idx, head_idx, :, dec_seg_idx, :]
+    except IndexError as e:
+        print(f"Error indexing array: {e}. Check if indices are within bounds.")
+        print(f"Shape: {reshaped_attn.shape}, Indices: sample={sample_idx}, head={head_idx}, dec_seg={dec_seg_idx}")
+        return
+
+    # 4. Plot the heatmap
+    plt.figure(figsize=(12, 1.25))
+    ax = sns.heatmap(attn_map_2d, cmap='viridis', yticklabels=feature_names, cbar_kws={'pad': 0.02})
+
+    # Configure x-axis to represent time steps (index * 15)
+    num_segments = attn_map_2d.shape[1]
+    tick_positions = np.arange(num_segments + 1)
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels([pos * 15 for pos in tick_positions], rotation=0, fontsize=8)
+
+    ax.set_title(f"Attention Map (Patient: {patient}, Query Time Segment: {dec_seg_idx*15+1}-{dec_seg_idx*15+15} min)")
+    ax.set_xlabel("Key Time Step (minutes)")
+    ax.set_ylabel("Key Dimension")
+    plt.yticks(rotation=60)
+    plt.show()
