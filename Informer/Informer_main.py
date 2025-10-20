@@ -1,19 +1,12 @@
 import sys
 import os
-# 设置项目根目录路径
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
-# 添加Glucoformer目录到Python路径
 GLUCOFORMER_DIR = os.path.join(PROJECT_ROOT, "Glucoformer")
 sys.path.insert(0, GLUCOFORMER_DIR) 
 sys.path.insert(0, os.path.dirname(GLUCOFORMER_DIR))
-
-from Glucose_Data.T1DMS_GlucoseDataset import T1DMS_GlucoseDataset
-from Glucose_Data.OhioDataset import *
 from Glucoformer.utils.train_eval import *
-from Glucoformer.utils.tools import *
 import random
-import os
 import argparse
 from Informer.models.model import *
 

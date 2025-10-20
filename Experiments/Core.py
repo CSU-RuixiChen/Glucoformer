@@ -8,7 +8,8 @@ from Glucoformer.Glucoformer_models.Glucoformer import *
 from Glucoformer.utils.train_eval import *
 from Glucoformer.utils.tools import *
 import random
-import os
+import numpy as np
+import pandas as pd
 
 def personalized_prediction(config, patient_id):
 
@@ -32,7 +33,6 @@ def personalized_prediction(config, patient_id):
                                                         os.path.join("../Glucose_Data/OhioT1DM_processed_dataset", f"{p}_test.csv"), 
                                                         seq_length=seq_len, label_length=label_len, pred_length=pred_len)
 
-    # 定义训练集、验证集、测试集 的数据加载器, 使用 DataLoader 进行批量处理
     train_dataloader = DataLoader(train_dataset, config.batch_size, shuffle=True)
     test_dataloader = DataLoader(test_dataset, config.batch_size, shuffle=False)
 
@@ -47,23 +47,19 @@ def personalized_prediction(config, patient_id):
 
 
 def generalized_prediction(config, patient_id=0):
-    # 固定随机种子
     random.seed(config.seed)
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
 
-    # 计算时间步相关参数
     time_step = config.time_step
     seq_len = int(config.seq_len / time_step)
     label_len = int(config.label_len / time_step)
     pred_len = int(config.pred_len / time_step)
     seg_len = int(config.seg_len / time_step)
 
-    # 定义保存路径和设备
     path_to_save_model = f"../Glucoformer/save_{config.model_name}_model_{config.seed}seed_{config.pred_len}min/"
     device = torch.device(config.device)
 
-    # 准备数据
     _, _, _, scalar = prepare_Ohio_data(
         data_dir="../Glucose_Data/OhioT1DM_processed_dataset",
         seq_length=seq_len, label_length=label_len, pred_length=pred_len)
@@ -78,7 +74,6 @@ def generalized_prediction(config, patient_id=0):
 
     test_dataloader = DataLoader(test_dataset, config.batch_size, shuffle=False)
 
-    # 初始化模型
     model = Glucoformer(
         data_dim=config.data_dim, in_len=seq_len, out_len=pred_len, seg_len=seg_len, output_size=config.c_out,
         factor=config.factor, d_model=config.d_model, d_ff=config.d_ff, n_heads=config.n_heads,
@@ -88,7 +83,6 @@ def generalized_prediction(config, patient_id=0):
 
     best_model = config.best_model
 
-    # 执行预测
     RMSE, MAE = prediction(config, model, test_dataloader, scalar, path_to_save_model, best_model, device, Experiment=True)
 
     print("----------------Complete Testing dataset for subject {}-------------".format(p))
@@ -153,50 +147,24 @@ def plot_multi_figure(PH, seed=2024, patient=563, days=3, start_time=0):
         "Glucoformer"
     ]
 
-    # 固定颜色字典
-    # model_colors = {
-    #     "Glucoformer":  "#D7263D",    
-    #     "Crossformer":  "#0088F8",    
-    #     "PatchTST":     "#72777b",       
-    #     "TimeXer":      "#005831",       
-    #     "DLinear":      "#9D03B5",        
-    #     "Informer":     "#f15a22",       
-    #     "Transformer":  "#65c294",    
-    #     "LSTM":         "#f173ac",           
-    #     "GRU":          "#00E1FA"             
-    # }
-    # model_colors = {
-    # "Glucoformer": "#D7263D",    # 鲜亮红
-    # "Crossformer": "#1B98E0",    # 亮蓝
-    # "PatchTST": "#F4D35E",       # 明黄
-    # "TimeXer": "#379634",        # 深绿
-    # "DLinear": "#6C3483",        # 紫罗兰
-    # "Informer": "#FF924C",       # 橙粉
-    # "Transformer": "#43AA8B",    # 青绿
-    # "LSTM": "#A23E48",           # 酒红
-    # "GRU": "cyan"             # 靛蓝
-    # }#最早色系
-
     model_colors = {
-        "Glucoformer":   "#E41A1C",  # 深红
-        "Crossformer":   "#377EB8",  # 深蓝
-        "PatchTST":      "#228B22",  # 森林绿
-        "TimeXer":       "#984EA3",  # 紫色
-        "DLinear":       "#FF7F00",  # 橙色
-        "Informer":      "#A65628",  # 棕色
-        "Transformer":   "#F781BF",  # 洋红
-        "LSTM":          "#17BECF",  # 青色
+        "Glucoformer":   "#E41A1C",  # Dark Red
+        "Crossformer":   "#377EB8",  # Dark Blue
+        "PatchTST":      "#228B22",  # Forest Green
+        "TimeXer":       "#984EA3",  # Purple
+        "DLinear":       "#FF7F00",  # Orange
+        "Informer":      "#A65628",  # Brown
+        "Transformer":   "#F781BF",  # Magenta
+        "LSTM":          "#17BECF",  # Cyan
         "GRU":           "#72777b",  
     }
 
     fig, ax = plt.subplots(figsize=(10, 3.5))
 
-    # 真实值
     y_path = f'../Glucoformer/save_Glucoformer_prediction_{seed}seed_{PH}min_{patient}patient/true_values.npy'
     y = np.load(y_path)[start_time:Duration+start_time, -1, 0]
     plt.plot(y, label='Actual', color='k', linewidth=1.8)
     
-    # 各模型预测值
     for model_name in model_names:
         yp_path = f'../{model_name}/save_{model_name}_prediction_{seed}seed_{PH}min_{patient}patient/predicted_values.npy'
         if not os.path.exists(yp_path):
@@ -213,13 +181,13 @@ def plot_multi_figure(PH, seed=2024, patient=563, days=3, start_time=0):
     plt.title(f'Blood Glucose Prediction Comparison (PH={PH}min, Patient {patient})')
     
     plt.legend(
-        loc='best',      # 自动选择合适位置
-        ncol=5,          # 3 列
+        loc='best',      
+        ncol=5,         
         fontsize=10,
         frameon=True,
         edgecolor="gray",
-        facecolor="white",  # 背景白色
-        framealpha=0.7      # 半透明，避免遮住曲线
+        facecolor="white",  
+        framealpha=0.7      
     )
     
     plt.tight_layout()
@@ -437,9 +405,9 @@ def clarke_colored_zones(y, yp, model_name, PH, patient, ax=None, print_figure=F
     yp : array_like
         Predicted/estimated values (mg/dl)
     ax : matplotlib.axes.Axes or None
-        子图对象，若为None则自动新建
+        Subplot object, if None, a new one is created automatically
     print_figure : bool, optional
-        是否保存图片
+        Whether to save the figure
 
     Returns:
     --------
@@ -560,7 +528,6 @@ def clarke_visualization_table(PH, seed=2024, patient=None, model_name=None, sin
     ]
 
     if single:
-        # 单模型单图模式
         if patient is None or model_name is None:
             raise ValueError("单图模式下必须指定 patient 和 model_name")
         y_path = f'../{model_name}/save_{model_name}_prediction_{seed}seed_{PH}min_{patient}patient/true_values.npy'
@@ -585,10 +552,9 @@ def clarke_visualization_table(PH, seed=2024, patient=None, model_name=None, sin
         df = pd.DataFrame(results)
         return df
 
-    # 批量3x3子图模式
     all_results = []
     for patient in patients:
-        results = []  # 每个病人单独统计
+        results = []  
         fig, axes = plt.subplots(3, 3, figsize=(15, 15))
         fig.suptitle(f"Clarke Error Grid Analysis (PH={PH}min, Patient {patient})", fontsize=18, y=0.95)
         for i, model_name in enumerate(models):
@@ -622,13 +588,10 @@ def clarke_visualization_table(PH, seed=2024, patient=None, model_name=None, sin
 
 def clarke_zone_stats(PH, seeds=[2023, 2024, 2025], patients=["563", "596"], models=None):
     """
-    只计算Clarke ABCDE区百分比，支持多随机种子，输出均值±标准差的pandas表格。
-    额外统计A+B和C+D+E的均值±标准差，分别对每个受试者输出。
+    Calculates only the percentage of points in Clarke's A, B, C, D, and E zones, supporting multiple random seeds.
+    Outputs a pandas DataFrame with mean ± standard deviation.
+    Additionally, it calculates statistics for combined zones (A+B and C+D+E) for each subject.
     """
-    import numpy as np
-    import pandas as pd
-    import os
-
     if models is None:
         models = [
             "Glucoformer", 

@@ -1,6 +1,6 @@
 import sys
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 GLUCOFORMER_DIR = os.path.join(PROJECT_ROOT, "Glucoformer")
@@ -27,7 +27,6 @@ Seeds = [2023, 2024, 2025]
 Experiment_modes = ['ggg', 'cgg', 'gig']
 prediction_task = [30, 60, 90]
 
-# 每次实验结果直接写入CSV
 with open(result_csv, "w") as f:
     f.write("mode,ph,seed,RMSE,MAE\n")
 
@@ -51,11 +50,9 @@ for Experiment_mode in Experiment_modes:
                 factor=config.factor, d_model=config.d_model, d_ff=config.d_ff, n_heads=config.n_heads,
                 e_layers=config.e_layers, dropout=config.dropout)
             RMSE, MAE = run(config, model, Tranning_mode="pretrain", Experiment_mode=Experiment_mode)
-            # 追加写入结果，顺序为mode,ph,seed
             with open(result_csv, "a") as f:
                 f.write(f"{Experiment_mode},{pred_len_raw},{seed},{RMSE},{MAE}\n")
 
-# 统计分析
 df = pd.read_csv(result_csv)
 rows = []
 for mode in Experiment_modes:

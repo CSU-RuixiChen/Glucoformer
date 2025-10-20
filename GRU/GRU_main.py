@@ -1,20 +1,12 @@
 import sys
 import os
-# 设置项目根目录路径
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # BGPredition
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
-# 添加Glucoformer目录到Python路径
 GLUCOFORMER_DIR = os.path.join(PROJECT_ROOT, "Glucoformer")
-sys.path.insert(0, GLUCOFORMER_DIR)  # 这样 Glucoformer 中的模块可以找到
-# 添加Glucoformer的父目录到Python路径
-sys.path.insert(0, os.path.dirname(GLUCOFORMER_DIR))  # 这样可以导入 Glucoformer
-
-from Glucose_Data.T1DMS_GlucoseDataset import T1DMS_GlucoseDataset
-from Glucose_Data.OhioDataset import *
-from Glucoformer.utils.train_eval import *
-from Glucoformer.utils.tools import *
+sys.path.insert(0, GLUCOFORMER_DIR)
+sys.path.insert(0, os.path.dirname(GLUCOFORMER_DIR))
 import random
-import os
+from Glucoformer.utils.train_eval import *
 import argparse
 from GRU.GRU_model import *
 

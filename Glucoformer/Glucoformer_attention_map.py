@@ -1,15 +1,12 @@
 import sys
 import os
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT_DIR)  # 插入到搜索路径的最前面
-from Glucose_Data.T1DMS_GlucoseDataset import T1DMS_GlucoseDataset
-from Glucose_Data.OhioDataset import *
+sys.path.insert(0, ROOT_DIR) 
 from Glucoformer.Glucoformer_models.Glucoformer import *
 from Glucoformer.utils.Glucoformer_options import GlucoformerOptions
 from Glucoformer.utils.train_eval import *
-from Glucoformer.utils.tools import *
 import random
-import argparse
+
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 if __name__ == "__main__":

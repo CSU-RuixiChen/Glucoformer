@@ -21,48 +21,37 @@ from datetime import datetime
 
 
 class OptunaOptimizer:
-    """Optuna超参数优化器类"""
     
     def __init__(self, base_config, n_trials=100, study_name="glucoformer_optimization"):
         """
-        初始化优化器
-        
+        Initializes the Optuna optimizer.
         Args:
-            base_config: 基础配置对象
-            n_trials: 优化试验次数
-            study_name: 研究名称
+            n_trials: Optimization trial count
+            study_name: Study name
         """
         self.base_config = base_config
         self.n_trials = n_trials
         self.study_name = study_name
         self.best_params = None
         self.best_value = None
-        
-        # 创建结果保存目录
+
         self.results_dir = f"optuna_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         os.makedirs(self.results_dir, exist_ok=True)
         
     def suggest_hyperparameters(self, trial):
-        """定义超参数搜索空间"""
         
-        # 模型结构741相关参数
         d_model = trial.suggest_categorical('d_model', [128, 256])
-        e_layers = trial.suggest_categorical('e_layers', [2, 3]) # 正确：在2和3之间选择
+        e_layers = trial.suggest_categorical('e_layers', [2, 3]) 
         d_ff = trial.suggest_categorical('d_ff', [512, 1024])
-        factor = trial.suggest_int('factor', 1, 2)  # 在1和2之间选择
-            
-        # 训练相关参数
+        factor = trial.suggest_int('factor', 1, 2) 
         batch_size = trial.suggest_categorical('batch_size', [64, 128, 256])
         pre_lr = trial.suggest_categorical('pre_lr', [1e-3, 5e-4, 1e-4]) 
         ft_lr = trial.suggest_categorical('ft_lr', [ 1e-3, 1e-4, 1e-5])
         dropout =  trial.suggest_categorical('dropout', [0.1, 0.2, 0.25])
-        # 序列长度相关参数
         seg_len = trial.suggest_categorical('seg_len', [15, 20, 30])
-        
-        # 优化器相关参数
-        pre_gamma = trial.suggest_categorical('pre_gamma', [0.5, 0.6, 0.7])  # 修正：只有low和high
-        ft_gamma = trial.suggest_categorical('ft_gamma', [0.5, 0.65, 0.75])      # 修正：只有low和high
-        step_size = trial.suggest_int('step_size', 1, 3)         # 修正：只有low和high
+        pre_gamma = trial.suggest_categorical('pre_gamma', [0.5, 0.6, 0.7]) 
+        ft_gamma = trial.suggest_categorical('ft_gamma', [0.5, 0.65, 0.75]) 
+        step_size = trial.suggest_int('step_size', 1, 3) 
 
         return {
             'd_model': d_model,
@@ -80,47 +69,41 @@ class OptunaOptimizer:
         }
     
     def objective(self, trial):
-        """优化目标函数"""
+        """Objective function for optimization."""
         
-        # 获取建议的超参数
+        # Get suggested hyperparameters
         suggested_params = self.suggest_hyperparameters(trial)
         
-        # 创建新的配置对象
+        # Create a new configuration object
         config = self.create_config_with_params(suggested_params)
         
         try:
-            # 运行训练和验证
+            # Run training and validation
             val_loss = self.train_and_evaluate(config, trial.number)
             
-            # 记录试验结果
+            # Log the trial result
             self.log_trial_result(trial.number, suggested_params, val_loss)
             
             return val_loss
             
         except Exception as e:
             print(f"Trial {trial.number} failed with error: {str(e)}")
-            # 返回一个很大的损失值表示失败
+            # Return a large loss value to indicate failure
             return float('inf')
     
     def create_config_with_params(self, params):
-        """根据建议的参数创建配置对象"""
         
-        # 复制基础配置
         config = argparse.Namespace(**vars(self.base_config))
-        
-        # 更新参数
+    
         for key, value in params.items():
             setattr(config, key, value)
             
-        # 更新模型保存路径以避免冲突
         config.model_name = f"Glucoformer_trial"
         
         return config
     
     def train_and_evaluate(self, config, trial_number):
-        """训练和评估模型"""
         
-        # 设置随机种子
         fix_seed = 2024
         random.seed(fix_seed)
         torch.manual_seed(fix_seed)
@@ -132,13 +115,11 @@ class OptunaOptimizer:
         pred_len = int(config.pred_len / time_step)
         seg_len = int(config.seg_len / time_step)
         
-        # 创建试验特定的保存路径
         path_to_save_model = f"{self.results_dir}/trial_{trial_number}_model_{config.pred_len}min/"
         config.path_to_save_scaler = f"{self.results_dir}/trial_{trial_number}_scaler/"
         config.path_to_save_loss = f"{self.results_dir}/save_loss/"
         device = torch.device(config.device)
         
-        # 清理目录
         if os.path.exists(path_to_save_model):
             shutil.rmtree(path_to_save_model)
         if os.path.exists(config.path_to_save_scaler):
@@ -146,9 +127,7 @@ class OptunaOptimizer:
         os.makedirs(path_to_save_model, exist_ok=True)
         os.makedirs(config.path_to_save_scaler, exist_ok=True)
         
-        # 准备数据
         try:
-            # 预训练数据
             pretrain_dataset = T1DMS_GlucoseDataset(
                 sim_result_mat_file_name='sim_results_train_dataset.mat',
                 sim_data_mat_file_name='sim_data_train_dataset.mat',
@@ -169,7 +148,6 @@ class OptunaOptimizer:
                 path_to_save_scaler=config.path_to_save_scaler
             )
             
-            # 微调数据
             train_dataset, validate_dataset, test_dataset, scalar = prepare_Ohio_data(
                 data_dir="../Glucose_Data/OhioT1DM_processed_dataset",
                 seq_length=seq_len, label_length=label_len, pred_length=pred_len,
@@ -180,12 +158,10 @@ class OptunaOptimizer:
             print(f"Data preparation failed: {str(e)}")
             raise e
         
-        # 创建数据加载器
         pretrain_dataloader = DataLoader(pretrain_dataset, config.batch_size, shuffle=True)
         prevalidate_dataloader = DataLoader(prevalidate_dataset, config.batch_size, shuffle=False)
         validate_dataloader = DataLoader(validate_dataset, config.batch_size, shuffle=False)
         
-        # 创建模型
         model = Glucoformer(
             data_dim=config.data_dim, in_len=seq_len, out_len=pred_len,
             seg_len=seg_len, output_size=config.c_out,
@@ -194,26 +170,22 @@ class OptunaOptimizer:
             dropout=config.dropout
         ).to(device)
         
-        # 预训练
         best_pretrain_model = pretrain_model(
             config, model, pretrain_dataloader, prevalidate_dataloader,
             path_to_save_model, device
         )
         
-        # 微调
         train_dataloader = DataLoader(train_dataset, config.batch_size, shuffle=True)
         best_model = Fine_Tuning_model(
             config, model, train_dataloader, validate_dataloader,
             scalar, path_to_save_model, best_pretrain_model, device
         )
         
-        # 计算验证损失
         val_loss = self.evaluate_model(
             config, model, validate_dataloader, scalar,
             path_to_save_model, best_model, device
         )
         
-        # 清理模型文件以节省空间
         try:
             shutil.rmtree(path_to_save_model)
             shutil.rmtree(config.path_to_save_scaler)
@@ -223,7 +195,6 @@ class OptunaOptimizer:
         return val_loss
     
     def evaluate_model(self, config, model, dataloader, scalar, path_to_save_model, best_model, device):
-        """评估模型性能"""
         
         model.load_state_dict(torch.load(path_to_save_model + best_model))
         criterion = torch.nn.MSELoss()
@@ -242,7 +213,6 @@ class OptunaOptimizer:
                 
                 output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
                 
-                # 反归一化
                 output_inverse = output * scalar.std[2] + scalar.mean[2]
                 target_inverse = tgt * scalar.std[2] + scalar.mean[2]
                 
@@ -253,7 +223,6 @@ class OptunaOptimizer:
         return total_loss / num_batches if num_batches > 0 else float('inf')
     
     def log_trial_result(self, trial_number, params, val_loss):
-        """记录试验结果"""
         
         result = {
             'trial_number': trial_number,
@@ -262,7 +231,6 @@ class OptunaOptimizer:
             'timestamp': datetime.now().isoformat()
         }
         
-        # 保存到JSON文件
         results_file = os.path.join(self.results_dir, 'trial_results.json')
         
         if os.path.exists(results_file):
@@ -277,40 +245,39 @@ class OptunaOptimizer:
             json.dump(results, f, indent=2)
     
     def optimize(self):
-        """执行超参数优化"""
         
-        print(f"开始Optuna超参数优化，试验次数: {self.n_trials}")
-        print(f"结果将保存到: {self.results_dir}")
+        print(f"Starting Optuna hyperparameter optimization with {self.n_trials} trials.")
+        print(f"Results will be saved to: {self.results_dir}")
         
-        # 创建研究对象
+        # Create a study object
         db_path = os.path.join(self.results_dir, "my_optuna_results.db")
         study = optuna.create_study(
             direction='minimize',
             study_name=self.study_name,
-            storage=f"sqlite:///{db_path}",  # 存储到SQLite数据库
+            storage=f"sqlite:///{db_path}",  # Store results in an SQLite database
             sampler=optuna.samplers.TPESampler(seed=2024)
         )
         
-        # 执行优化
+        # Execute the optimization
         study.optimize(self.objective, n_trials=self.n_trials)
         
-        # 保存最佳结果
+        # Save the best results
         self.best_params = study.best_params
         self.best_value = study.best_value
         
-        # 保存优化结果
+        # Save optimization results
         self.save_optimization_results(study)
         
-        print(f"优化完成！")
-        print(f"最佳验证损失: {self.best_value:.6f}")
-        print(f"最佳参数: {self.best_params}")
+        print("Optimization finished!")
+        print(f"Best validation loss: {self.best_value:.6f}")
+        print(f"Best parameters: {self.best_params}")
         
         return study
     
     def save_optimization_results(self, study):
-        """保存优化结果"""
+        """Saves the optimization results."""
         
-        # 保存最佳参数
+        # Save best parameters
         best_params_file = os.path.join(self.results_dir, 'best_parameters.json')
         with open(best_params_file, 'w') as f:
             json.dump({
@@ -319,7 +286,7 @@ class OptunaOptimizer:
                 'n_trials': len(study.trials)
             }, f, indent=2)
         
-        # 保存所有试验的详细信息
+        # Save detailed information for all trials
         trials_data = []
         for trial in study.trials:
             trial_data = {
@@ -339,7 +306,7 @@ class OptunaOptimizer:
         try:
             import matplotlib.pyplot as plt
      
-            # 1. 优化历史图
+            # 1. Optimization History Plot
             plt.figure(figsize=(12, 8))
             optuna.visualization.matplotlib.plot_optimization_history(study)
             plt.title('Optimization History', fontsize=14, pad=20)
@@ -349,7 +316,7 @@ class OptunaOptimizer:
             plt.savefig(os.path.join(self.results_dir, 'optimization_history.png'), dpi=600, bbox_inches='tight')
             plt.close()
             
-            # 2. 参数重要性图
+            # 2. Parameter Importances Plot
             plt.figure(figsize=(12, 8))
             optuna.visualization.matplotlib.plot_param_importances(study)
             # plt.title('Parameter Importances', fontsize=14, pad=20)
@@ -358,7 +325,7 @@ class OptunaOptimizer:
             plt.savefig(os.path.join(self.results_dir, 'parameter_importances.png'), dpi=600, bbox_inches='tight')
             plt.close()
             
-            # 3. 平行坐标图
+            # 3. Parallel Coordinate Plot
             ax = optuna.visualization.matplotlib.plot_parallel_coordinate(study)
             ax.figure.set_size_inches(15, 8)
             for label in ax.get_xticklabels():
@@ -367,22 +334,22 @@ class OptunaOptimizer:
 
             for axes in ax.figure.axes:
                 if axes.get_ylabel() == 'Objective Value':
-                    axes.set_ylabel('MSE_Loss', fontsize=12)
+                    axes.set_ylabel('MSE Loss', fontsize=12)
 
             xlabels = [label.get_text() for label in ax.get_xticklabels()]
             if len(xlabels) > 0 and xlabels[0] == 'Objective Value':
                 xticklabels = ax.get_xticklabels()
-                xticklabels[0].set_text('MSE_Loss')
-                ax.set_xticklabels([('MSE_Loss' if t.get_text() == 'Objective Value' else t.get_text()) for t in xticklabels])
+                xticklabels[0].set_text('MSE Loss')
+                ax.set_xticklabels([('MSE Loss' if t.get_text() == 'Objective Value' else t.get_text()) for t in xticklabels])
 
-            # 设置标题并加大与图的距离
+            # Set title and increase distance from plot
             ax.set_title(ax.get_title(), pad=25)
-            # 自动调整布局
+            # Adjust layout automatically
             plt.tight_layout()
             plt.savefig(os.path.join(self.results_dir, "parallel_coordinate.png"), dpi=600, bbox_inches="tight")
             plt.close()
             
-            # 4. 收敛图
+            # 4. Convergence Plot
             plt.figure(figsize=(12, 8))
             values = [trial.value for trial in study.trials if trial.value is not None]
             best_values = []
@@ -413,25 +380,25 @@ class OptunaOptimizer:
 
         
     def train_best_model(self):
-        """使用最佳参数训练最终模型"""
+        """Trains the final model using the best parameters."""
         
         if self.best_params is None:
-            raise ValueError("需要先运行优化才能训练最佳模型")
+            raise ValueError("Optimization must be run before training the best model.")
         
-        print("使用最佳参数训练最终模型...")
+        print("Training the final model with the best parameters...")
         
-        # 创建最佳配置
+        # Create the best configuration
         best_config = self.create_config_with_params(self.best_params)
         best_config.model_name = "Glucoformer_best"
-        best_config.train_epochs = self.base_config.train_epochs * 2  # 使用更多epoch训练最终模型
+        best_config.train_epochs = self.base_config.train_epochs * 2  # Use more epochs to train the final model
         
-        # 运行完整训练
+        # Run the full training
         return self.run_full_training(best_config)
     
     def run_full_training(self, config):
-        """运行完整的训练流程"""
+        """Runs the full training process."""
         
-        # 设置随机种子
+        # Set random seed
         fix_seed = config.seed
         random.seed(fix_seed)
         torch.manual_seed(fix_seed)
@@ -447,11 +414,11 @@ class OptunaOptimizer:
         config.path_to_save_scaler = f"{self.results_dir}/save_scaler/"
         config.path_to_save_loss = f"{self.results_dir}/save_loss/"
         device = torch.device(config.device)
-        # 清理并创建目录
+        # Clean and create directories
         os.mkdir(f"{self.results_dir}/save_{config.model_name}_model_{config.pred_len}min")
         os.mkdir(f"{self.results_dir}/save_scaler")
         
-        # 准备数据
+        # Prepare data
         pretrain_dataset = T1DMS_GlucoseDataset(
             sim_result_mat_file_name='sim_results_train_dataset.mat',
             sim_data_mat_file_name='sim_data_train_dataset.mat',
@@ -478,14 +445,14 @@ class OptunaOptimizer:
             unimodal=False
         )
         
-        # 创建数据加载器
+        # Create data loaders
         pretrain_dataloader = DataLoader(pretrain_dataset, config.batch_size, shuffle=True)
         prevalidate_dataloader = DataLoader(prevalidate_dataset, config.batch_size, shuffle=False)
         train_dataloader = DataLoader(train_dataset, config.batch_size, shuffle=True)
         validate_dataloader = DataLoader(validate_dataset, config.batch_size, shuffle=False)
         test_dataloader = DataLoader(test_dataset, config.batch_size, shuffle=False)
         
-        # 创建模型
+        # Create model
         model = Glucoformer(
             data_dim=config.data_dim, in_len=seq_len, out_len=pred_len,
             seg_len=seg_len, output_size=config.c_out,
@@ -495,13 +462,13 @@ class OptunaOptimizer:
         ).to(device)
 
 
-        # 记录配置
+        # Log configuration
         parameters_record = (f"-------------{config.model_name} pre-training starts-------------")
         print(parameters_record)
         log_loss(config.path_to_save_loss, config.model_name, parameters_record, config.pred_len)
         log_loss(config.path_to_save_loss, config.model_name, str(vars(config)), config.pred_len)
         
-        # 预训练
+        # Pre-training
         best_pretrain_model = pretrain_model(
             config, model, pretrain_dataloader, prevalidate_dataloader,
             path_to_save_model, device
@@ -509,7 +476,7 @@ class OptunaOptimizer:
         log_loss(config.path_to_save_loss, config.model_name, "Pre-training complete, fine-tuning begins", config.pred_len)
         log_loss(config.path_to_save_loss, config.model_name, best_pretrain_model, config.pred_len)
         
-        # 微调
+        # Fine-tuning
         print("-------------Pre-training complete, fine-tuning begins-------------")
         best_model = Fine_Tuning_model(
             config, model, train_dataloader, validate_dataloader,
@@ -517,7 +484,7 @@ class OptunaOptimizer:
         )
         log_loss(config.path_to_save_loss, config.model_name, best_model, config.pred_len)
         
-        # 测试
+        # Testing
         print("-------------Fine-tuning complete, testing begins-------------")
         test_rmse, test_mae = prediction(
             config, model, test_dataloader, scalar,
@@ -533,22 +500,22 @@ class OptunaOptimizer:
 
 
 def main_optuna(config):
-    """主要的Optuna优化函数"""
+    """Main Optuna optimization function."""
     
-    # 创建优化器
+    # Create optimizer
     optimizer = OptunaOptimizer(
         base_config=config,
         n_trials=config.n_trials,
         study_name=f"glucoformer_opt_{config.pred_len}min"
     )
     
-    # 执行优化
+    # Execute optimization
     study = optimizer.optimize()
     
-    # 训练最佳模型
+    # Train the best model
     if config.train_best:
         best_results = optimizer.train_best_model()
-        print(f"最佳模型测试结果:")
+        print(f"Best model test results:")
         print(f"MSE: {best_results['test_rmse']** 2:.6f}")
         print(f"RMSE: {best_results['test_rmse']:.6f}")
         print(f"MAE: {best_results['test_mae']:.6f}")
@@ -559,7 +526,7 @@ def main_optuna(config):
 if __name__ == "__main__":
     
     config = GlucoformerOptions().parse()
-    print('\nOptuna超参数优化实验开始...')
+    print('\nStarting Optuna hyperparameter optimization experiment...')
     print("\nOptions =================>")
     print(vars(config))
 
