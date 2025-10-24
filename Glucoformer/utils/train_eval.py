@@ -19,85 +19,83 @@ def pretrain_model(config, model, train_dataloader, validate_dataloader, path_to
     optimizer = optim.Adam(model.parameters(), lr=config.pre_lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, config.step_size, config.pre_gamma)
 
-    # 添加tensorboard; 启动命令：tensorboard --logdir = logs_train; 指定端口：tensorboard -- logdir = logs –port = 6007
     # writer = SummaryWriter(f"logs_train_pred{config.pred_len}min；{datetime.now().strftime("%Y-%m-%d；%Hh%Mm%Ss")}/")
     sensor_scaler = load(config.path_to_save_scaler+'sensor_scaler.joblib')
     early_stopping = EarlyStopping(patience=config.patience, pretrain=True, verbose=False, delta=0)
 
-    # 训练和验证
     for epoch in range(1, config.train_epochs+1):  
         total_train_MSE_loss = 0
         total_train_MAE_loss = 0
         total_validate_MSE_loss = 0
         total_validate_MAE_loss = 0
         total_validate_accuracy = 0
-        # 将模型设置为训练模式
+
         model.train()
-        # 遍历数据集encoder_input, decoder_input, tgt
+
         pbar = tqdm(train_dataloader)
         for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            # 梯度清零
+
             optimizer.zero_grad()
-            # 前向传播
+
             output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
             # print(encoder_input.shape, decoder_input.shape, tgt.shape, output.shape)
-            # 计算损失用于反向传播和更新参数
+
             train_loss = criterion1(output, tgt)
-            # 反向传播
+
             train_loss.backward()
-            # 更新参数
+
             optimizer.step()
-            # 统计反归一化损失，直观看到损失
+
             train_output_inverse = torch.tensor(sensor_scaler.inverse_transform(output.reshape(-1,1).detach().cpu().numpy()).reshape(output.shape), dtype=torch.float32)
             train_target_inverse = torch.tensor(sensor_scaler.inverse_transform(tgt.reshape(-1,1).detach().cpu().numpy()).reshape(tgt.shape), dtype=torch.float32)
             train_MSE_loss_inverse = criterion1(train_output_inverse, train_target_inverse)
             train_MAE_loss_inverse = criterion2(train_output_inverse, train_target_inverse)
             total_train_MSE_loss += train_MSE_loss_inverse.item()
             total_train_MAE_loss += train_MAE_loss_inverse.item()
-            # 显示训练进度
+
             train_s = "Train ==> [Epoch: {}/{}] - step:{} - train_MSE_loss:{:.8f} - train_MAE_loss:{:.8f}".format(epoch, config.train_epochs, step+1, train_MSE_loss_inverse, train_MAE_loss_inverse)
             pbar.set_description(train_s)
 
-        # 将模型设置为验证模式
+
         model.eval()
         with torch.no_grad():
-            #遍历验证集
+
             pbar = tqdm(validate_dataloader)
             for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
                 encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-                # 前向传播
+
                 output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-                # 反归一化
+
                 validate_output_inverse = torch.tensor(sensor_scaler.inverse_transform(output.reshape(-1,1).detach().cpu().numpy()).reshape(output.shape), dtype=torch.float32)
                 validate_target_inverse = torch.tensor(sensor_scaler.inverse_transform(tgt.reshape(-1,1).detach().cpu().numpy()).reshape(tgt.shape), dtype=torch.float32)
                 validate_MSE_loss_inverse = criterion1(validate_output_inverse, validate_target_inverse)
                 validate_MAE_loss_inverse = criterion2(validate_output_inverse, validate_target_inverse)
                 total_validate_MSE_loss += validate_MSE_loss_inverse.item()
                 total_validate_MAE_loss += validate_MAE_loss_inverse.item()
-                # 计算正确率
+
                 correct = (torch.abs(validate_output_inverse - validate_target_inverse) <= config.tolerance).sum().item()
                 total_elements = output.numel()  # Total number of elements (16 * 3)
                 validate_accuracy = correct / total_elements
                 total_validate_accuracy += validate_accuracy
-                # 显示训练进度
+
                 validate_s = "Validate ==> [Epoch: {}/{}] - step:{} - Val_MSE_loss:{:.8f} - Val_MAE_loss:{:.8f} - Val_accuracy:{:.8f}".format(epoch, config.train_epochs, step+1, validate_MSE_loss_inverse, validate_MAE_loss_inverse, validate_accuracy)
                 pbar.set_description(validate_s)
-        # 对每一轮的训练和验证计算平均损失和验证集的正确率
+
         avg_train_MSE_loss = total_train_MSE_loss/len(train_dataloader)
         avg_train_MAE_loss = total_train_MAE_loss/len(train_dataloader)
         avg_validate_MSE_loss = total_validate_MSE_loss /len(validate_dataloader)
         avg_validate_MAE_loss = total_validate_MAE_loss /len(validate_dataloader)
         avg_validate_accuracy = total_validate_accuracy /len(validate_dataloader)
-        # 记录训练集和验证集的损失到text，每几轮训练打印一次
+
         for param_group in optimizer.param_groups:
             record = f"[Epoch: {epoch}/{config.train_epochs}], Train_MSE_loss:{avg_train_MSE_loss:.8f}, Train_MAE_loss:{avg_train_MAE_loss:.8f}, Val_MSE_loss:{avg_validate_MSE_loss:.8f}, Val_RMSE_loss:{math.sqrt(avg_validate_MSE_loss):.8f}, Val_MAE_loss:{avg_validate_MAE_loss:.8f}, Val_accuracy:{avg_validate_accuracy:.8f}, Learning Rate: {param_group['lr']}"
         log_loss(config.path_to_save_loss, config.model_name, record, config.pred_len)
         if (epoch % 1)==0:
             print(record)
-        # # 记录训练集和验证集的损失到tensorboard
+        # Record the loss of the training set and validation set to TensorBoard
         # writer.add_scalar("train/train_MSE_loss", avg_train_MSE_loss, epoch)
         # writer.add_scalar("train/train_MAE_loss", avg_train_MAE_loss, epoch)
         # writer.add_scalar("validate/validate_MSE_loss", avg_validate_MSE_loss, epoch)
@@ -123,84 +121,81 @@ def Fine_Tuning_model(config, model, train_dataloader, validate_dataloader, scal
     optimizer = optim.Adam(model.parameters(), lr=config.ft_lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, config.step_size, config.ft_gamma)
 
-    # 添加tensorboard; 启动命令：tensorboard --logdir = logs_train; 指定端口：tensorboard -- logdir = logs –port = 6007
     # writer = SummaryWriter(f"logs_train_pred{config.pred_len}min；{datetime.now().strftime("%Y-%m-%d；%Hh%Mm%Ss")}/")
     early_stopping = EarlyStopping(patience=config.patience, pretrain=False, verbose=False, delta=0)
 
-    # 训练和验证
     for epoch in range(1, config.train_epochs+1):  
         total_train_MSE_loss = 0
         total_train_MAE_loss = 0
         total_validate_MSE_loss = 0
         total_validate_MAE_loss = 0
         total_validate_accuracy = 0
-        # 将模型设置为训练模式
+
         model.train()
-        # 遍历数据集encoder_input, decoder_input, tgt
+
         pbar = tqdm(train_dataloader)
         for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            # 梯度清零
+
             optimizer.zero_grad()
-            # 前向传播
+
             # print(encoder_input.shape, encoder_input_mark.shape, decoder_input.shape, decoder_input_mark.shape, tgt.shape)
             output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-            # 计算损失用于反向传播和更新参数
+
             train_loss = criterion1(output, tgt)
-            # 反向传播
+
             train_loss.backward()
-            # 更新参数
+
             optimizer.step()
-            # 统计反归一化损失，直观看到损失
+
             train_output_inverse = output* scalar.std[2] + scalar.mean[2]
             train_target_inverse = tgt* scalar.std[2] + scalar.mean[2]
             train_MSE_loss_inverse = criterion1(train_output_inverse, train_target_inverse)
             train_MAE_loss_inverse = criterion2(train_output_inverse, train_target_inverse)
             total_train_MSE_loss += train_MSE_loss_inverse.item()
             total_train_MAE_loss += train_MAE_loss_inverse.item()
-            # 显示训练进度
+
             train_s = "Train ==> [Epoch: {}/{}] - step:{} - train_MSE_loss:{:.8f} - train_MAE_loss:{:.8f}".format(epoch, config.train_epochs, step+1, train_MSE_loss_inverse, train_MAE_loss_inverse)
             pbar.set_description(train_s)
 
-        # 将模型设置为验证模式
         model.eval()
         with torch.no_grad():
-            # 遍历验证集
+
             pbar = tqdm(validate_dataloader)
             for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
                 encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-                # 前向传播
+
                 output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-                # 反归一化
+
                 validate_output_inverse = output* scalar.std[2] + scalar.mean[2]
                 validate_target_inverse = tgt* scalar.std[2] + scalar.mean[2]
                 validate_MSE_loss_inverse = criterion1(validate_output_inverse, validate_target_inverse)
                 validate_MAE_loss_inverse = criterion2(validate_output_inverse, validate_target_inverse)
                 total_validate_MSE_loss += validate_MSE_loss_inverse.item()
                 total_validate_MAE_loss += validate_MAE_loss_inverse.item()
-                # 计算正确率
+
                 correct = (torch.abs(validate_output_inverse - validate_target_inverse) <= config.tolerance).sum().item()
                 total_elements = output.numel()  # Total number of elements (16 * 3)
                 validate_accuracy = correct / total_elements
                 total_validate_accuracy += validate_accuracy
-                # 显示训练进度
+
                 validate_s = "Validate ==> [Epoch: {}/{}] - step:{} - Val_MSE_loss:{:.8f} - Val_MAE_loss:{:.8f} - Val_accuracy:{:.8f}".format(epoch, config.train_epochs, step+1, validate_MSE_loss_inverse, validate_MAE_loss_inverse, validate_accuracy)
                 pbar.set_description(validate_s)
-        # 对每一轮的训练和验证计算平均损失和验证集的正确率
+
         avg_train_MSE_loss = total_train_MSE_loss/len(train_dataloader)
         avg_train_MAE_loss = total_train_MAE_loss/len(train_dataloader)
         avg_validate_MSE_loss = total_validate_MSE_loss /len(validate_dataloader)
         avg_validate_MAE_loss = total_validate_MAE_loss /len(validate_dataloader)
         avg_validate_accuracy = total_validate_accuracy /len(validate_dataloader)
-        # 记录训练集和验证集的损失到text，每几轮训练打印一次
+
         for param_group in optimizer.param_groups:
             record = f"[Epoch: {epoch}/{config.train_epochs}], Train_MSE_loss:{avg_train_MSE_loss:.8f}, Train_MAE_loss:{avg_train_MAE_loss:.8f}, Val_MSE_loss:{avg_validate_MSE_loss:.8f}, Val_RMSE_loss:{math.sqrt(avg_validate_MSE_loss):.8f}, Val_MAE_loss:{avg_validate_MAE_loss:.8f}, Val_accuracy:{avg_validate_accuracy:.8f}, Learning Rate: {param_group['lr']}"
         log_loss(config.path_to_save_loss, config.model_name, record, config.pred_len)
         if (epoch % 1)==0:
             print(record)
-        # 记录训练集和验证集的损失到tensorboard
+        # Record the loss of the training set and validation set to TensorBoard
         # writer.add_scalar("train/train_MSE_loss", avg_train_MSE_loss, epoch)
         # writer.add_scalar("train/train_MAE_loss", avg_train_MAE_loss, epoch)
         # writer.add_scalar("validate/validate_MSE_loss", avg_validate_MSE_loss, epoch)
@@ -228,27 +223,27 @@ def prediction(config, model, test_dataloader, scalar, path_to_save_model, best_
     criterion1 = nn.MSELoss()
     criterion2 = nn.L1Loss()
     
-    # 将模型设置为验证模式
+
     model.eval()
     with torch.no_grad():
-        #遍历验证集
+
         pbar = tqdm(test_dataloader, disable=Experiment)
 
         for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            # 前向传播
+
             output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-            # 反归一化
+
             test_output_inverse = output* scalar.std[2] + scalar.mean[2]
             test_target_inverse = tgt* scalar.std[2] + scalar.mean[2]
-            # 计算反归一化的损失
+
             MSE_loss_inverse = criterion1(test_output_inverse,test_target_inverse)
             MAE_loss_inverse = criterion2(test_output_inverse, test_target_inverse)
-            # 统计损失
+
             total_test_MSE_test_loss += MSE_loss_inverse.item()
             total_test_MAE_test_loss += MAE_loss_inverse.item()
-            # 计算正确率
+
             correct = (torch.abs(test_output_inverse - test_target_inverse) <= config.tolerance).sum().item()
             total_elements = output.numel()  
             test_accuracy = correct / total_elements
@@ -258,7 +253,7 @@ def prediction(config, model, test_dataloader, scalar, path_to_save_model, best_
         
             pbar.set_description(s)
 
-    # 计算平均损失
+
     avg_test_MSE_test_loss = total_test_MSE_test_loss /len(test_dataloader)
     avg_test_MAE_test_loss = total_test_MAE_test_loss /len(test_dataloader)
     avg_test_accuracy = total_test_accuracy /len(test_dataloader)
@@ -282,36 +277,36 @@ def simple_train_test(config, model, train_dataloader, test_dataloader, device):
     optimizer = optim.Adam(model.parameters(), lr=config.ft_lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, config.step_size, config.ft_gamma)
 
-    # 训练和验证
+
     for epoch in range(1, config.train_epochs+1):  
         total_train_MSE_loss = 0
         total_train_MAE_loss = 0
-        # 将模型设置为训练模式
+
         model.train()
-        # 遍历数据集encoder_input, decoder_input, tgt
+
         pbar = tqdm(train_dataloader, disable=True)
         for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            # 梯度清零
+
             optimizer.zero_grad()
-            # 前向传播
+
             # print(encoder_input.shape, encoder_input_mark.shape, decoder_input.shape, decoder_input_mark.shape, tgt.shape)
             output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-            # 计算损失用于反向传播和更新参数
+
             train_loss = criterion1(output, tgt)
-            # 反向传播
+
             train_loss.backward()
-            # 更新参数
+
             optimizer.step()
-            # 统计反归一化损失，直观看到损失
+
             train_output_inverse = output* train_dataloader.dataset.std[2] +train_dataloader.dataset.mean[2]
             train_target_inverse = tgt* train_dataloader.dataset.std[2] + train_dataloader.dataset.mean[2]
             train_MSE_loss_inverse = criterion1(train_output_inverse, train_target_inverse)
             train_MAE_loss_inverse = criterion2(train_output_inverse, train_target_inverse)
             total_train_MSE_loss += train_MSE_loss_inverse.item()
             total_train_MAE_loss += train_MAE_loss_inverse.item()
-            # 显示训练进度
+
             train_s = "Train ==> [Epoch: {}/{}] - step:{} - train_MSE_loss:{:.8f} - train_MAE_loss:{:.8f}".format(epoch, config.train_epochs, step+1, train_MSE_loss_inverse, train_MAE_loss_inverse)
             pbar.set_description(train_s)
         scheduler.step()
@@ -321,32 +316,30 @@ def simple_train_test(config, model, train_dataloader, test_dataloader, device):
         record = f"[Epoch: {epoch}/{config.train_epochs}], Train_MSE_loss:{avg_train_MSE_loss:.8f}, Train_MAE_loss:{avg_train_MAE_loss:.8f}"
         print(record)
 
-    # 将模型设置为验证模式
     model.eval()
     with torch.no_grad():
         total_test_MSE_test_loss = 0
         total_test_MAE_test_loss = 0
         total_test_accuracy = 0
         
-        #遍历验证集
+
         pbar = tqdm(test_dataloader, disable=True)
         
         for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, res) in enumerate (pbar):
-            # 将数据移到设备上
+
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            # 前向传播
+
             output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-            # 反归一化
+
             test_output_inverse = output* train_dataloader.dataset.std[2] + train_dataloader.dataset.mean[2]
             test_target_inverse = tgt* train_dataloader.dataset.std[2] + train_dataloader.dataset.mean[2]
-            # 计算反归一化的损失
+
             MSE_loss_inverse = criterion1(test_output_inverse,test_target_inverse)
             MAE_loss_inverse = criterion2(test_output_inverse, test_target_inverse)
-            # 统计损失
 
             total_test_MSE_test_loss += MSE_loss_inverse.item()
             total_test_MAE_test_loss += MAE_loss_inverse.item()
-            # 计算正确率
+
             correct = (torch.abs(test_output_inverse - test_target_inverse) <= config.tolerance).sum().item()
             total_elements = output.numel()  
             test_accuracy = correct / total_elements
@@ -355,7 +348,6 @@ def simple_train_test(config, model, train_dataloader, test_dataloader, device):
             s = "test ==> step:{} - MSE_loss:{:.8f} - MAE_loss:{:.8f} - accuracy:{:.8f}".format(step+1, MSE_loss_inverse, MAE_loss_inverse, test_accuracy)
             pbar.set_description(s)
 
-    # 计算平均损失
     avg_test_MSE_test_loss = total_test_MSE_test_loss /len(test_dataloader)
     avg_test_MAE_test_loss = total_test_MAE_test_loss /len(test_dataloader)
     avg_test_accuracy = total_test_accuracy /len(test_dataloader)
@@ -378,28 +370,28 @@ def inference_individual(config, model, test_dataloader, scalar, path_to_save_mo
     criterion1 = nn.MSELoss()
     criterion2 = nn.L1Loss()
     
-    # 将模型设置为验证模式
+
     model.eval()
     with torch.no_grad():
-        #遍历验证集
+
         pbar = tqdm(test_dataloader)
-        all_true_values = []  # 必须始终为 list
-        all_predicted_values = []  # 必须始终为 list
+        all_true_values = [] 
+        all_predicted_values = []  
         for step, (encoder_input, encoder_input_mark, decoder_input ,decoder_input_mark, tgt, _) in enumerate (pbar):
-            # 将数据移到设备上
+
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            # 前向传播
+
             output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-            # 反归一化
+
             test_output_inverse = output* scalar.std[2] + scalar.mean[2]
             test_target_inverse = tgt* scalar.std[2] + scalar.mean[2]
-            # 计算反归一化的损失
+
             MSE_loss_inverse = criterion1(test_output_inverse,test_target_inverse)
             MAE_loss_inverse = criterion2(test_output_inverse, test_target_inverse)
-            # 统计损失
+
             total_test_MSE_test_loss += MSE_loss_inverse.item()
             total_test_MAE_test_loss += MAE_loss_inverse.item()
-            # 计算正确率
+
             correct = (torch.abs(test_output_inverse - test_target_inverse) <= config.tolerance).sum().item()
             total_elements = output.numel()  
             test_accuracy = correct / total_elements
@@ -413,8 +405,6 @@ def inference_individual(config, model, test_dataloader, scalar, path_to_save_mo
             s = "test ==> step:{} - MSE_loss:{:.8f} - MAE_loss:{:.8f} - accuracy:{:.8f}".format(step+1, MSE_loss_inverse, MAE_loss_inverse, test_accuracy)
             pbar.set_description(s)
     
-    # 保存预测结果
-    # step 循环结束后再保存，避免覆盖 list 类型
     path_to_save_prediction = f"save_{config.model_name}_prediction_{config.seed}seed_{config.pred_len}min_{patient}patient/"
     if os.path.exists(path_to_save_prediction):
         shutil.rmtree(path_to_save_prediction)
@@ -424,7 +414,6 @@ def inference_individual(config, model, test_dataloader, scalar, path_to_save_mo
     np.save(os.path.join(path_to_save_prediction, f"true_values.npy"), all_true_values_np)
     np.save(os.path.join(path_to_save_prediction, f"predicted_values.npy"), all_predicted_values_np)
 
-    # 计算平均损失
     avg_test_MSE_test_loss = total_test_MSE_test_loss /len(test_dataloader)
     avg_test_MAE_test_loss = total_test_MAE_test_loss /len(test_dataloader)
     avg_test_accuracy = total_test_accuracy /len(test_dataloader)
@@ -436,23 +425,21 @@ def inference_individual(config, model, test_dataloader, scalar, path_to_save_mo
 
 def save_inference_individual_result(config, path_to_save_model, best_model, model=None):
 
-    # 计算时间步相关参数
     time_step = config.time_step
     seq_len = int(config.seq_len / time_step)
     label_len = int(config.label_len / time_step)
     pred_len = int(config.pred_len / time_step)
-    # 兼容 seg_len 和 patch_len，优先 seg_len，没有则用 patch_len，如果都没有则跳过 seg_len 的计算
+
     if hasattr(config, 'seg_len') and config.seg_len is not None:
         seg_len = int(config.seg_len / time_step)
     elif hasattr(config, 'patch_len') and config.patch_len is not None:
         seg_len = int(config.patch_len / time_step)
     else:
-        seg_len = None  # 如果都没有则设为 None，不报错
+        seg_len = None 
 
-    # 定义保存路径和设备
+
     device = torch.device(config.device)
 
-    # 准备数据
     data_dir="../Glucose_Data/OhioT1DM_processed_dataset"
     _, _, _, scalar = prepare_Ohio_data(
         data_dir=data_dir,
@@ -479,7 +466,7 @@ def save_inference_individual_result(config, path_to_save_model, best_model, mod
         model = model.to(device)
         
         print(f"----------------[Inference] Starting individualized prediction for subject {p}----------------")
-        # 执行预测
+
         inference_individual(config, model, test_dataloader, scalar, path_to_save_model, best_model, device, patient=p)
         print(f"----------------[Inference] Finished evaluation on test dataset for subject {p}----------------")
 
@@ -487,9 +474,9 @@ def save_inference_individual_result(config, path_to_save_model, best_model, mod
 def run(config, model, Tranning_mode="normal_train", Experiment_mode=None):
     """
     mode: 
-        "pretrain"                - 预训练+微调+预测
-        "finetune"&"normal_train" - 仅微调/正常训练+预测
-        "predict"                 - 仅预测
+        "pretrain"                - Pre-training + Fine-tuning + Prediction
+        "finetune"&"normal_train" - Fine-tuning/Normal training + Prediction only
+        "predict"                 - Prediction only
     """
     Experiment_mode_dict = {
             "ggg": "Glucose-Glucose-Glucose",
@@ -510,7 +497,6 @@ def run(config, model, Tranning_mode="normal_train", Experiment_mode=None):
     pred_len = int(config.pred_len/time_step)
     device = torch.device(config.device)
 
-    # 数据集和dataloader准备
     train_dataset, validate_dataset, test_dataset, scalar = prepare_Ohio_data(
         data_dir="../Glucose_Data/OhioT1DM_processed_dataset",
         seq_length=seq_len, label_length=label_len, pred_length=pred_len, Experiment_mode=Experiment_mode)
@@ -523,10 +509,8 @@ def run(config, model, Tranning_mode="normal_train", Experiment_mode=None):
         validate_dataloader = DataLoader(validate_dataset, batch_size=config.batch_size, shuffle=False)
         test_dataloader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
 
-    # 模型定义
     model = model.to(device)
 
-    # 训练/微调/预测流程
     if Tranning_mode == "pretrain":
         if Experiment_mode is not None:
             os.makedirs(results_dir, exist_ok=True)
@@ -600,7 +584,6 @@ def run(config, model, Tranning_mode="normal_train", Experiment_mode=None):
         if best_model is None:
             raise ValueError("config.best_model is None! Please specify the model path or name for prediction.")
 
-    # 预测
     print(f"-------------{config.model_name} prediction starts-------------")
     log_loss(config.path_to_save_loss, config.model_name, f"-------------{config.model_name} prediction starts-------------", config.pred_len)
     if Tranning_mode == "predict":
@@ -621,12 +604,12 @@ def run(config, model, Tranning_mode="normal_train", Experiment_mode=None):
 
 def inference_and_save_attention(config, model, test_dataloader, path_to_save_model, best_model, device, patient):
     """
-    一个专门用于推理并保存注意力分数的核心函数。
+    A core function dedicated to reasoning and preserving attention scores.
     """
-    # 加载最佳模型权重
+    # Load the best model weights
     model.load_state_dict(torch.load(path_to_save_model + best_model))
     
-    # 将模型设置为评估模式
+    # Set the model to evaluation mode
     model.eval()
     
     with torch.no_grad():
@@ -636,23 +619,22 @@ def inference_and_save_attention(config, model, test_dataloader, path_to_save_mo
         all_attn_weights = []
 
         for step, (encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt, _) in enumerate(pbar):
-            # 将数据移到设备上
+            # Move data to the device
             encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt = encoder_input.to(device), encoder_input_mark.to(device), decoder_input.to(device), decoder_input_mark.to(device), tgt.to(device)
-            
-            # 前向传播，并获取注意力权重
-            # 假设模型支持 return_attention=True 参数
+
+            # Forward pass and get attention weights
+            # Assume the model supports return_attention=True parameter
             _, attn_weights = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
             
-            # 收集注意力权重
+            # Collect attention weights
             all_attn_weights.append(attn_weights.detach().cpu().numpy())
 
-    # 创建保存目录
+    # Create save directory
     path_to_save_attention = f"save_{config.model_name}_attention_{config.seed}seed_{config.pred_len}min_{patient}patient/"
     if os.path.exists(path_to_save_attention):
         shutil.rmtree(path_to_save_attention)
     os.makedirs(path_to_save_attention)
 
-    # 拼接并保存
     all_attn_weights_np = np.concatenate(all_attn_weights, axis=0)
     np.save(os.path.join(path_to_save_attention, "attention_weights.npy"), all_attn_weights_np)
     
@@ -662,27 +644,22 @@ def inference_and_save_attention(config, model, test_dataloader, path_to_save_mo
 
 def run_attention_saving_experiment(config, path_to_save_model, best_model, model=None):
 
-    # 计算时间步相关参数
     time_step = config.time_step
     seq_len = int(config.seq_len / time_step)
     label_len = int(config.label_len / time_step)
     pred_len = int(config.pred_len / time_step)
 
-    # 定义设备
     device = torch.device(config.device)
 
-    # 准备数据
     data_dir="../Glucose_Data/OhioT1DM_processed_dataset"
-    # 只需要 scalar 来构建数据集，所以其他返回可以用 _ 忽略
+
     _, _, _, scalar = prepare_Ohio_data(
         data_dir=data_dir,
         seq_length=seq_len, label_length=label_len, pred_length=pred_len)
     
-    # 您可以指定为哪些患者保存注意力图
     patients_to_analyze = ["563", "596"]
     
     for p in patients_to_analyze:
-        # 为单个患者创建数据集和数据加载器
         test_dataset = torch.utils.data.ConcatDataset([
             OhioDataset(
                 raw_df=pd.read_csv(os.path.join(data_dir, f"{p}_train.csv")), 
@@ -704,7 +681,6 @@ def run_attention_saving_experiment(config, path_to_save_model, best_model, mode
         
         print(f"----------------[Attention] Starting to save attention maps for subject {p}----------------")
         
-        # 调用核心函数来执行推理和保存
         inference_and_save_attention(
             config, 
             model, 
