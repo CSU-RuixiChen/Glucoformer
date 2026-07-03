@@ -14,3 +14,5 @@ analyzer/
 Glucose_Data/
 models/Glucoformer_app
 models/Glucoformer0
+data_provider/Shanghai_Dataset.py
+.vscode/
