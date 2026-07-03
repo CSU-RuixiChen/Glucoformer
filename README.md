@@ -35,7 +35,7 @@
   Glucoformer is extensively evaluated on three datasets: T1DMS, OhioT1DM, and DiaTrend. Experiments include direct comparisons with established and SOTA BG forecasting models (GRU, LSTM, Transformer, Informer, DLinear, TimeXer, PatchTST, and Crossformer), along with long-horizon forecasting analysis, clinical accuracy and safety evaluation, ablation studies, interpretability analysis, and computational complexity profiling. Additionally, zero-shot transfer evaluation on the external DiaTrend dataset further validates its cross-domain generalization capability.
 
 
-## 2 Project Folder Structure
+## 2. Project Folder Structure
 
 <pre>
 Glucoformer
@@ -105,7 +105,7 @@ pip install -r requirements.txt
 After these steps, your environment will be ready to run the code and experiments in this repository.
 
 
-## 4 Dataset Preparation
+## 4. Dataset Preparation
 
 Three datasets were utilized in this project: the **T1DMS virtual dataset**, the **OhioT1DM real-world dataset**, and the **DiaTrend real-world dataset**.
 
@@ -132,7 +132,7 @@ After obtaining the datasets, please place them in the corresponding subfolders 
 - **OhioT1DM Raw Dataset:**
 
   <pre>
-  Glucose_Data/OhioT1DM_raw_dataset/
+  Glucose_Data/OhioT1DM_Dataset/OhioT1DM_raw_dataset
   ├── OhioT1DM-2018-training/
   │   ├── 559-ws-training.xml
   │   ├── 563-ws-training.xml
