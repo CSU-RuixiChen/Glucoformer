@@ -8,6 +8,7 @@ results*/
 run_personalized_and_population_experiments.py
 pretrain_main*.py
 main*.py
+!main.py
 feature_ablation_experiment.py
 exp/Glucoformer_optuna.py
 analyzer/
