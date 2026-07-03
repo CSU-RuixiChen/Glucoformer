@@ -148,7 +148,6 @@ def main(config, main_path=os.getcwd()):
                 overall_row[f'RMSE_{ph}'] = f"{rmse_mean:.4f}±{rmse_std:.4f}"
                 overall_row[f'MAE_{ph}'] = f"{mae_mean:.4f}±{mae_std:.4f}"
 
-            # 【新增2】全体受试者：整段序列 RMSE_all / MAE_all 总平均
             rmse_all_patient_means = [float(row["RMSE_all"].split('±')[0]) for row in patient_rows]
             mae_all_patient_means = [float(row["MAE_all"].split('±')[0]) for row in patient_rows]
 
@@ -197,19 +196,19 @@ def set_model_parameters(config):
                 factor=config.factor, d_model=config.d_model, d_ff=config.d_ff, n_heads=config.n_heads,
                 e_layers=config.e_layers, dropout=config.dropout).to(device)
     
-    elif config.model_name == 'Glucoformer_app':
-        from models.Glucoformer_app.Glucoformer import Glucoformer
-        from models.Glucoformer_app.Glucoformer_parameters import get_Glucoformer_parser
+    # elif config.model_name == 'Glucoformer_app':
+    #     from models.Glucoformer_app.Glucoformer import Glucoformer
+    #     from models.Glucoformer_app.Glucoformer_parameters import get_Glucoformer_parser
         
-        if config.experiment_dir is None:
-            override_args = getattr(config, 'override_args', None)
-            config = merge_options(config, get_Glucoformer_parser(), args=override_args)
+    #     if config.experiment_dir is None:
+    #         override_args = getattr(config, 'override_args', None)
+    #         config = merge_options(config, get_Glucoformer_parser(), args=override_args)
         
-        seg_len = int(config.seg_len/config.sensor_sampling)
-        model = Glucoformer(
-                data_dim=config.data_dim, in_len=seq_len, out_len=pred_len, seg_len=seg_len, output_size=config.c_out,
-                factor=config.factor, d_model=config.d_model, d_ff=config.d_ff, n_heads=config.n_heads,
-            e_layers=config.e_layers, dropout=config.dropout,).to(device)
+    #     seg_len = int(config.seg_len/config.sensor_sampling)
+    #     model = Glucoformer(
+    #             data_dim=config.data_dim, in_len=seq_len, out_len=pred_len, seg_len=seg_len, output_size=config.c_out,
+    #             factor=config.factor, d_model=config.d_model, d_ff=config.d_ff, n_heads=config.n_heads,
+    #         e_layers=config.e_layers, dropout=config.dropout,).to(device)
 
     elif config.model_name == 'Glucoformer':
         from models.Glucoformer.Glucoformer import Glucoformer
@@ -484,160 +483,6 @@ def train(config, LOG_DIR, train_dataloader, validate_dataloader, device, model)
             break
     
     print('Finished training after {} epochs, validate_min_loss: {:.6f})'.format(epoch, validate_min_loss))
-
-
-# def eval_per_subject(config, LOG_DIR, model, device, test_dataloader, test_patients, 
-#                      zeroshot_dataloader=None, zeroshot_patients=None, PH=[30, 60, 90, 120], model_path=None):
-#     if model_path is None:
-#         model_path = os.path.join(LOG_DIR+config.model_save_path, f'{config.model_name}_seed{config.seed}.pth')
-
-#     criterion1 = nn.MSELoss()
-#     criterion2 = nn.L1Loss()
-#     model.load_state_dict(torch.load(model_path))
-
-#     print(f"Evaluating {config.model_name} model by subject, please wait...")
-#     model.eval()
-    
-#     test_dataset = test_dataloader.dataset
-#     # 拆分两套独立受试者数据集：普通测试集、零样本外部集
-#     test_patient_datasets = []
-#     zs_patient_datasets = []
-
-#     # ===================== 按数据集自动分配数据 =====================
-#     if config.dataset == "OhioT1DM" and hasattr(test_dataset, "datasets"):
-#         # 构建普通测试集受试者数据
-#         for i, patient in enumerate(test_patients):
-#             test_patient_datasets.append((patient, torch.utils.data.ConcatDataset([
-#                 test_dataset.datasets[2 * i], 
-#                 test_dataset.datasets[2 * i + 1]
-#             ])))
-#         # 有零样本数据则构建外部测试集
-#         if zeroshot_dataloader is not None and zeroshot_patients is not None:
-#             zeroshot_dataset = zeroshot_dataloader.dataset  
-#             for x, zeroshot_patient in enumerate(zeroshot_patients):
-#                 zs_patient_datasets.append((zeroshot_patient, zeroshot_dataset.datasets[x]))
-                
-#     elif config.dataset == "DiaTrend" and hasattr(test_dataset, "datasets"):
-#         # 其他数据集仅构建普通测试集
-#         for i, patient in enumerate(test_patients):
-#             test_patient_datasets.append((patient, test_dataset.datasets[i]))
-
-#     # ===================== 通用评估函数（内部复用，无结构改动） =====================
-#     def run_eval(ds_list, prefix):
-#         results = []
-#         for patient_id, dataset in ds_list:
-#             ph_metrics = dict(**{f'RMSE_{ph}': 0 for ph in PH}, **{f'MAE_{ph}': 0 for ph in PH})
-            
-#             sub_dataloader = torch.utils.data.DataLoader(
-#                 dataset,
-#                 batch_size=test_dataloader.batch_size,
-#                 shuffle=False, 
-#                 num_workers=test_dataloader.num_workers,
-#                 drop_last=False
-#             )
-            
-#             with torch.no_grad():
-#                 for _, (encoder_input, encoder_input_mark, decoder_input, decoder_input_mark, tgt, _) in enumerate(sub_dataloader):
-#                     encoder_input = encoder_input.to(device)
-#                     encoder_input_mark = encoder_input_mark.to(device)
-#                     decoder_input = decoder_input.to(device)
-#                     decoder_input_mark = decoder_input_mark.to(device)
-#                     tgt = tgt.to(device)
-                    
-#                     output = model(encoder_input, encoder_input_mark, decoder_input, decoder_input_mark)
-                    
-#                     for ph in PH:
-#                         idx = int(ph / config.sensor_sampling) - 1
-#                         output_ph = output[:, idx, :]
-#                         tgt_ph = tgt[:, idx, :]
-
-#                         test_dataset = test_dataloader.dataset
-#                         if hasattr(test_dataset, "datasets"):
-#                             inverse_transform_func = test_dataset.datasets[0].inverse_transform
-#                             mean = test_dataset.datasets[0].mean[2]
-#                             std = test_dataset.datasets[0].std[2]
-#                         else:
-#                             inverse_transform_func = test_dataset.inverse_transform
-#                             mean = test_dataset.mean[2]
-#                             std = test_dataset.std[2]
-
-#                         if config.use_delta:
-#                             bg_current_norm = encoder_input[:, -1, -1].unsqueeze(1)
-#                             mean_t = torch.tensor(mean, device=output.device)
-#                             std_t = torch.tensor(std, device=output.device)
-#                             bg_current_real = bg_current_norm * std_t + mean_t
-#                             delta_pred_real = output_ph * std_t
-#                             delta_true_real = tgt_ph * std_t
-#                             bg_pred_real = bg_current_real + delta_pred_real.squeeze(-1)
-#                             bg_true_real = bg_current_real + delta_true_real.squeeze(-1)
-#                             mse = criterion1(bg_pred_real, bg_true_real).item()
-#                             mae = criterion2(bg_pred_real, bg_true_real).item()
-#                         else:
-#                             output_numpy = output_ph.reshape(-1, 1).detach().cpu().numpy()
-#                             tgt_numpy = tgt_ph.reshape(-1, 1).detach().cpu().numpy()
-#                             output_inv = torch.tensor(inverse_transform_func(output_numpy), dtype=torch.float32)
-#                             tgt_inv = torch.tensor(inverse_transform_func(tgt_numpy), dtype=torch.float32)
-#                             mse = criterion1(output_inv, tgt_inv).item()
-#                             mae = criterion2(output_inv, tgt_inv).item()
-
-#                         ph_metrics[f'RMSE_{ph}'] += mse
-#                         ph_metrics[f'MAE_{ph}'] += mae
-
-#             ph_metrics['run_seed'] = config.seed
-#             ph_metrics['patient_id'] = patient_id
-#             for ph in PH:
-#                 ph_metrics[f'RMSE_{ph}'] = math.sqrt(ph_metrics[f'RMSE_{ph}'] / len(sub_dataloader))
-#                 ph_metrics[f'MAE_{ph}'] /= len(sub_dataloader)
-                
-#             # 文件命名使用对应前缀，区分两类结果
-#             subject_csv_path = os.path.join(LOG_DIR+config.eval_result_path, f'result_subject_{prefix}_{patient_id}.csv')
-#             columns_order = ['run_seed'] + [f'{m}_{ph}' for ph in PH for m in ['RMSE', 'MAE']]
-#             df_subject = pd.DataFrame([ph_metrics])[columns_order]
-#             df_subject.to_csv(subject_csv_path, mode='a', header=not os.path.exists(subject_csv_path), index=False)
-            
-#             results.append(ph_metrics)
-#         return results
-
-#     # ===================== 自动执行评估 =====================
-#     # 1. 始终运行普通测试集
-#     test_results = run_eval(test_patient_datasets, "test")
-#     # 打印测试集汇总
-#     if test_results:
-#         columns_order_print = ['run_seed', 'patient_id'] + [f'{m}_{ph}' for ph in PH for m in ['RMSE', 'MAE']]
-#         df_test = pd.DataFrame(test_results)[columns_order_print]
-#         print(f"Evaluation completed for seed {config.seed}. Average across test set subjects:")
-#         mean_rows = []
-#         for ph in PH:
-#             rmse_mean = df_test[f'RMSE_{ph}'].mean()
-#             rmse_std = df_test[f'RMSE_{ph}'].std() if len(df_test) > 1 else 0.0
-#             mae_mean = df_test[f'MAE_{ph}'].mean()
-#             mae_std = df_test[f'MAE_{ph}'].std() if len(df_test) > 1 else 0.0
-#             mean_rows.append({
-#                 'PH': ph,
-#                 'RMSE': f"{rmse_mean:.4f}±{rmse_std:.4f}",
-#                 'MAE': f"{mae_mean:.4f}±{mae_std:.4f}"
-#             })
-#         print(pd.DataFrame(mean_rows, columns=["PH", "RMSE", "MAE"]).to_string(index=False))
-
-#     # 2. 仅 OhioT1DM 且存在零样本数据时，运行外部零样本集
-#     if config.dataset == "OhioT1DM" and zs_patient_datasets:
-#         zs_results = run_eval(zs_patient_datasets, "zeroshot")
-#         if zs_results:
-#             columns_order_print = ['run_seed', 'patient_id'] + [f'{m}_{ph}' for ph in PH for m in ['RMSE', 'MAE']]
-#             df_zs = pd.DataFrame(zs_results)[columns_order_print]
-#             print(f"\nEvaluation completed for seed {config.seed}. Average across zero-shot set subjects:")
-#             mean_rows_zs = []
-#             for ph in PH:
-#                 rmse_mean = df_zs[f'RMSE_{ph}'].mean()
-#                 rmse_std = df_zs[f'RMSE_{ph}'].std() if len(df_zs) > 1 else 0.0
-#                 mae_mean = df_zs[f'MAE_{ph}'].mean()
-#                 mae_std = df_zs[f'MAE_{ph}'].std() if len(df_zs) > 1 else 0.0
-#                 mean_rows_zs.append({
-#                     'PH': ph,
-#                     'RMSE': f"{rmse_mean:.4f}±{rmse_std:.4f}",
-#                     'MAE': f"{mae_mean:.4f}±{mae_std:.4f}"
-#                 })
-#             print(pd.DataFrame(mean_rows_zs, columns=["PH", "RMSE", "MAE"]).to_string(index=False))
 
 
 def eval_per_subject(config, LOG_DIR, model, device, test_dataloader, test_patients, 
